@@ -13,5 +13,5 @@ wxPoint Port::GetScreenPosition(const wxPoint2DDouble& shapePos, double width, d
 void Port::Draw(wxDC& dc, const wxPoint& screenPos) const {
     dc.SetBrush(wxBrush(wxColour(100, 100, 255)));
     dc.SetPen(*wxBLACK_PEN);
-    dc.DrawCircle(screenPos, 4);  // 포트는 반지름 4px의 원으로 시각화
+    dc.DrawCircle(screenPos, 4);  // 반지름 4픽셀 원
 }

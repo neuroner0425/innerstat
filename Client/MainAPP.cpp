@@ -2,14 +2,15 @@
 #include <wx/listbox.h>
 #include "Canvas.h"
 
-class MainFrame : public wxFrame
-{
+class MainFrame : public wxFrame {
 private:
     MyCanvas *canvas = nullptr;
 
 public:
-    MainFrame() : wxFrame(nullptr, wxID_ANY, "Inner Stat", wxDefaultPosition, wxSize(1000, 600))
-    {
+    /**
+     * @brief MainFrame 생성자 - UI 초기화 및 이벤트 바인딩
+     */
+    MainFrame() : wxFrame(nullptr, wxID_ANY, "Inner Stat", wxDefaultPosition, wxSize(1000, 600)) {
         wxBoxSizer *sizer = new wxBoxSizer(wxHORIZONTAL);
         wxPanel *leftPanel = new wxPanel(this);
         wxBoxSizer *leftSizer = new wxBoxSizer(wxVERTICAL);
@@ -29,43 +30,49 @@ public:
 
         SetSizer(sizer);
 
-        addAreaBtn->Bind(wxEVT_BUTTON, [=](wxCommandEvent &)
-                         { canvas->AddNewArea(); });
-        addNodeBtn->Bind(wxEVT_BUTTON, [=](wxCommandEvent &)
-                         { canvas->AddNewNode(); });
-        shapeList->Bind(wxEVT_LISTBOX, [=](wxCommandEvent &evt)
-                        { canvas->SelectShape(evt.GetSelection()); });
+        // 버튼 및 리스트 이벤트 바인딩
+        addAreaBtn->Bind(wxEVT_BUTTON, [=](wxCommandEvent &) {
+            canvas->AddNewArea("os");
+        });
+        addNodeBtn->Bind(wxEVT_BUTTON, [=](wxCommandEvent &) {
+            canvas->AddNewNode("PID 1234");
+        });
+        shapeList->Bind(wxEVT_LISTBOX, [=](wxCommandEvent &evt) {
+            canvas->SelectShape(evt.GetSelection());
+        });
 
         wxMenuBar *menuBar = new wxMenuBar();
-
         wxMenu *fileMenu = new wxMenu();
         fileMenu->Append(wxID_OPEN, "열기(&O)");
         fileMenu->Append(wxID_SAVE, "저장(&S)");
 
-        menuBar->Append(fileMenu, "File"); // ✅ 반드시 빈 문자열 아님
-        SetMenuBar(menuBar);                   // ✅ 반드시 호출
-        
-        Bind(wxEVT_MENU, [=](wxCommandEvent &)
-             {
+        menuBar->Append(fileMenu, "File");
+        SetMenuBar(menuBar);
+
+        // 메뉴 이벤트 바인딩
+        Bind(wxEVT_MENU, [=](wxCommandEvent &) {
             wxFileDialog dlg(this, "파일 열기", "", "", "텍스트 파일 (*.txt)|*.txt", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
             if (dlg.ShowModal() == wxID_OK) {
                 canvas->LoadFromFile(dlg.GetPath().ToStdString());
-            } }, wxID_OPEN);
+            }
+        }, wxID_OPEN);
 
-        Bind(wxEVT_MENU, [=](wxCommandEvent &)
-             {
+        Bind(wxEVT_MENU, [=](wxCommandEvent &) {
             wxFileDialog dlg(this, "파일 저장", "", "", "텍스트 파일 (*.txt)|*.txt", wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
             if (dlg.ShowModal() == wxID_OK) {
                 canvas->SaveToFile(dlg.GetPath().ToStdString());
-            } }, wxID_SAVE);
+            }
+        }, wxID_SAVE);
     }
 };
 
-class MyApp : public wxApp
-{
+class MyApp : public wxApp {
 public:
-    virtual bool OnInit()
-    {
+    /**
+     * @brief 앱 초기화 시 MainFrame 생성 및 표시
+     * @return true 항상 true 반환
+     */
+    virtual bool OnInit() {
         MainFrame *frame = new MainFrame();
         frame->Show();
         return true;
