@@ -2,26 +2,21 @@
 #include <wx/textdlg.h>
 #include <wx/spinctrl.h>
 #include <sstream>
-#include <fstream>
-#include <unordered_map>
 
 Area::Area(double x, double y, double w, double h, const std::string& t)
     : Shape(x, y, w, h), type(t) {
     SetPortCount(2);
 }
 
-void Area::SetPortCount(int count)
-{
+void Area::SetPortCount(int count) {
     ports.clear();
-    for (int i = 0; i < count; ++i)
-    {
+    for (int i = 0; i < count; ++i) {
         double ratio = (i + 1.0) / (count + 1.0); // 0.25, 0.5, 0.75 ...
         ports.emplace_back("p" + std::to_string(i), wxPoint2DDouble(ratio, 0.0));
     }
 }
 
-void Area::OpenPropertyDialog(wxWindow *parent)
-{
+void Area::OpenPropertyDialog(wxWindow *parent) {
     wxDialog dlg(parent, wxID_ANY, "Area Properties");
     wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
 
@@ -34,17 +29,15 @@ void Area::OpenPropertyDialog(wxWindow *parent)
     sizer->Add(typeCtrl, 0, wxEXPAND | wxALL, 5);
     sizer->Add(new wxStaticText(&dlg, wxID_ANY, "Port Count:"), 0, wxALL, 5);
     sizer->Add(portCount, 0, wxEXPAND | wxALL, 5);
-
     sizer->Add(new wxButton(&dlg, wxID_OK), 0, wxALIGN_CENTER | wxALL, 10);
+
     dlg.SetSizerAndFit(sizer);
 
-    if (dlg.ShowModal() == wxID_OK)
-    {
+    if (dlg.ShowModal() == wxID_OK) {
         type = typeCtrl->GetValue().ToStdString();
         SetPortCount(portCount->GetValue());
     }
 }
-
 
 void Area::Draw(wxDC& dc, double scale, const wxPoint2DDouble& offset, bool selected) const {
     wxPoint screenPos(pos.m_x * scale + offset.m_x, pos.m_y * scale + offset.m_y);
@@ -59,7 +52,7 @@ void Area::Draw(wxDC& dc, double scale, const wxPoint2DDouble& offset, bool sele
     for (const auto& port : ports) {
         wxPoint p = port.GetScreenPosition(pos, width, height, scale, offset);
         port.Draw(dc, p);
-        dc.DrawText(port.id, p + wxPoint(6, -6));  // 포트 이름 옆에 표시
+        dc.DrawText(port.id, p + wxPoint(6, -6));  // 포트 이름 표시
     }
 }
 
@@ -74,6 +67,7 @@ Area* Area::Deserialize(const std::string& line) {
     std::string tag, type;
     double x, y, w, h;
     int portCount;
+
     iss >> tag >> type >> x >> y >> w >> h >> portCount;
     auto* area = new Area(x, y, w, h, type);
     area->SetPortCount(portCount);
