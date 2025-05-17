@@ -1,12 +1,14 @@
 #include "Node.h"
+#include "Canvas.h"
+#include "Port.h"
 #include <wx/textdlg.h>
 #include <wx/spinctrl.h>
 #include <sstream>
 
-Node::Node(double x, double y, double w, double h, const std::string &pid)
-    : Shape(x, y, w, h), pidIdentifier(pid), active(true), overloaded(false)
+Node::Node(double x, double y, double w, double h, const std::string &pid, MyCanvas* p)
+    : Shape(x, y, w, h, p), pidIdentifier(pid), active(true), overloaded(false)
 {
-    SetPortCount(2);
+    SetPortCount(1);
 }
 
 void Node::SetPortCount(int count)
@@ -18,10 +20,10 @@ void Node::SetPortCount(int count)
     }
 }
 
-void Node::Draw(wxDC &dc, double scale, const wxPoint2DDouble &offset, bool selected) const {
-    wxPoint screenPos(pos.m_x * scale + offset.m_x, pos.m_y * scale + offset.m_y);
-    int w = width * scale;
-    int h = height * scale;
+void Node::Draw(wxDC &dc) const {
+    wxPoint screenPos(pos.m_x * parent->scale + parent->offset.m_x, pos.m_y * parent->scale + parent->offset.m_y);
+    int w = width * parent->scale;
+    int h = height * parent->scale;
 
     wxColour fill = overloaded ? wxColour(255, 100, 100)
                   : (active ? wxColour(180, 255, 180) : wxColour(200, 200, 200));
@@ -33,13 +35,13 @@ void Node::Draw(wxDC &dc, double scale, const wxPoint2DDouble &offset, bool sele
     dc.DrawText("PID: " + pidIdentifier, screenPos + wxPoint(5, 5));
 
     for (const auto& port : ports) {
-        wxPoint p = port.GetScreenPosition(pos, width, height, scale, offset);
+        wxPoint p = port.GetScreenPosition(pos, width, height, parent->scale, parent->offset);
         port.Draw(dc, p);
         dc.DrawText(port.id, p + wxPoint(6, -6));
     }
 }
 
-void Node::OpenPropertyDialog(wxWindow* parent) {
+void Node::OpenPropertyDialog(MyCanvas* parent) {
     wxDialog dlg(parent, wxID_ANY, "Node Properties");
     wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
@@ -68,14 +70,14 @@ std::string Node::Serialize() const {
     return oss.str();
 }
 
-Node* Node::Deserialize(const std::string& line) {
+Node* Node::Deserialize(const std::string& line, MyCanvas* p) {
     std::istringstream iss(line);
     std::string tag, pid;
     double x, y, w, h;
     int portCount;
 
     iss >> tag >> pid >> x >> y >> w >> h >> portCount;
-    auto* node = new Node(x, y, w, h, pid);
+    auto* node = new Node(x, y, w, h, pid, p);
     node->SetPortCount(portCount);
     return node;
 }
