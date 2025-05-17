@@ -4,6 +4,8 @@
 #include <vector>
 #include <string>
 
+class MyCanvas;
+
 /**
  * @brief Node 클래스는 말단 프로세스나 PID 단위를 시각화하는 도형입니다.
  *        상태(active/overloaded)와 포트, PID 식별자를 포함합니다.
@@ -23,7 +25,7 @@ public:
      * @param h 높이
      * @param pid PID 문자열
      */
-    Node(double x, double y, double w, double h, const std::string& pid);
+    Node(double x, double y, double w, double h, const std::string& pid, MyCanvas* parent);
 
     /**
      * @brief 도형 그리기
@@ -32,13 +34,13 @@ public:
      * @param offset 오프셋
      * @param selected 선택 여부
      */
-    void Draw(wxDC& dc, double scale, const wxPoint2DDouble& offset, bool selected) const override;
+    void Draw(wxDC& dc) const override;
 
     /**
      * @brief 속성 설정 다이얼로그 열기
      * @param parent 부모 창
      */
-    void OpenPropertyDialog(wxWindow* parent) override;
+    void OpenPropertyDialog(MyCanvas* parent) override;
 
     /**
      * @brief 포트 개수 설정 및 재배치
@@ -59,5 +61,5 @@ public:
     /**
      * @brief 문자열로부터 Node 객체 생성
      */
-    static Node* Deserialize(const std::string& line);
+    static Node* Deserialize(const std::string& line, MyCanvas* parent);
 };

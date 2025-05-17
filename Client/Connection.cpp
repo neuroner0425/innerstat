@@ -11,11 +11,12 @@ void Connection::Draw(wxDC& dc, double scale, const wxPoint2DDouble& offset) con
 
     dc.SetPen(wxPen(*wxBLACK, 2));
 
-    // 꺾인 라인(엘보 형태) - 수평 → 수직 → 수평
-    int midX = a.x;
-    int midY = b.y;
+    int minimumLineLength = 50 * scale;
+    int midY = (a.y > b.y)? b.y - minimumLineLength : a.y - minimumLineLength;
 
-    dc.DrawLine(a.x, a.y, midX, a.y);   // 수평
-    dc.DrawLine(midX, a.y, midX, midY); // 수직
-    dc.DrawLine(midX, midY, b.x, b.y);  // 수평
+    dc.DrawLine(a.x, a.y, a.x, a.y - minimumLineLength);
+    dc.DrawLine(a.x, a.y - minimumLineLength , a.x, midY ); // 수직
+    dc.DrawLine(a.x, midY, b.x, midY);   // 수평
+    dc.DrawLine(b.x, b.y - minimumLineLength, b.x, midY);  // 수직
+    dc.DrawLine(b.x, b.y, b.x, b.y - minimumLineLength);
 }

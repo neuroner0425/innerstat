@@ -1,7 +1,11 @@
 #pragma once
 #include <wx/wx.h>
 #include <wx/listbox.h>
+#include <wx/treectrl.h>
+
 #include <vector>
+#include <map>
+
 #include "Shape.h"
 #include "Area.h"
 #include "Node.h"
@@ -9,10 +13,15 @@
 
 class MyCanvas : public wxPanel {
 public:
+    Shape* selectedShape = nullptr;                 // 현재 선택된 도형 인덱스
+    wxPoint lastMouse;                         // 마지막 마우스 위치
+    double scale = 1.0;                        // 캔버스 확대/축소 배율
+    wxPoint2DDouble offset = { 0, 0 };         // 화면 오프셋
+    
     /**
      * @brief MyCanvas 생성자 - 렌더링 및 이벤트 초기 설정
      */
-    MyCanvas(wxWindow* parent, wxListBox* shapeList);
+    MyCanvas(wxWindow* parent, wxTreeCtrl* shapeTree);
 
     /**
      * @brief MyCanvas 소멸자 - Shape 메모리 정리
@@ -26,16 +35,33 @@ public:
     void AddNewArea(const std::string& areaType);
 
     /**
-     * @brief 새로운 Node 추가
-     * @param nodeType Node 종류 문자열
+     * @brief Shape의 포인터로 선택
+     * @param shape 선택할 Shape의 포인터
+     * @param isSelect 선택으로 할건지 선택 해제로 할것인지
      */
-    void AddNewNode(const std::string& nodeType);
+    inline void SelectShape(Shape* shape){
+        if (selectedShape != nullptr) selectedShape->selected = false;
+        selectedShape = shape;
+        selectedShape->selected = true;
+
+        for (const auto& [itemId, mappedShape] : shapeMap) {
+            if (mappedShape == shape) {
+                shapeTree->SelectItem(itemId);  // Tree에서 선택 처리
+                break;
+            }
+        }
+
+        Refresh();
+    }
+    
+    inline void UnSelectShape(){
+        if (selectedShape != nullptr) selectedShape->selected = false;
+    }
 
     /**
-     * @brief 특정 인덱스의 Shape 선택
-     * @param index 선택할 Shape의 인덱스
+     * @brief 리스트 UI를 도형 목록과 동기화
      */
-    void SelectShape(int index);
+    void RefreshTree();
 
     /**
      * @brief 모든 Shape 및 Connection 정보를 파일로 저장
@@ -49,14 +75,25 @@ public:
      */
     void LoadFromFile(const std::string& path);
 
-private:
-    std::vector<Shape*> shapes;                // 도형 목록
-    wxListBox* shapeList;                      // 리스트 UI 컨트롤
+    /**
+     * 
+     */
+    void ResizingShape(Shape* shape, HandleType& handleType);
 
-    size_t selectedIndex = -1;                 // 현재 선택된 도형 인덱스
-    wxPoint lastMouse;                         // 마지막 마우스 위치
-    double scale = 1.0;                        // 캔버스 확대/축소 배율
-    wxPoint2DDouble offset = { 0, 0 };         // 화면 오프셋
+    /**
+     * 
+     */
+    void DraggingShape(Shape* shape);
+
+    /**
+     * 
+     */
+    void OnTreeSelectionChanged(wxTreeItemId itemId);  // 선택 연동
+
+private:
+    std::vector<Area*> areas;                // 도형 목록
+    wxTreeCtrl* shapeTree;                      // 리스트 UI 컨트롤
+    std::map<wxTreeItemId, Shape*> shapeMap;
 
     bool dragging = false;
     bool resizing = false;
@@ -66,11 +103,6 @@ private:
     const Port* pendingPort = nullptr;         // 현재 연결 대기 중인 포트
     const Shape* pendingShape = nullptr;       // 연결 시작 도형
     std::vector<Connection> connections;       // 연결선 목록
-
-    /**
-     * @brief 리스트 UI를 도형 목록과 동기화
-     */
-    void RefreshList();
 
     /** @brief 도형 및 연결선 렌더링 */
     void OnPaint(wxPaintEvent& evt);
@@ -90,13 +122,7 @@ private:
     /** @brief 도형 더블클릭 시 속성창 열기 */
     void OnLeftDClick(wxMouseEvent& evt);
 
-    /**
-     * @brief 마우스 위치에서 포트 클릭 여부 확인
-     * @param pos 마우스 위치
-     * @param outShape 포트가 속한 도형 반환
-     * @return 선택된 포트 포인터
-     */
-    const Port* HitTestPort(const wxPoint& pos, const Shape** outShape) const;
+    void AppendAreaToTree(wxTreeItemId parentId, Area* area);
 
     wxDECLARE_EVENT_TABLE();
 };

@@ -1,17 +1,26 @@
 #pragma once
 #include "Shape.h"
+#include "Node.h"
 #include "Port.h"
 #include <string>
 #include <vector>
+
+class MyCanvas;
 
 /**
  * @brief Area 클래스는 시스템 단위 도형을 나타냅니다.
  *        타입(OS, VM 등)과 포트 정보를 포함하며, 시각화 및 직렬화 기능을 제공합니다.
  */
 class Area : public Shape {
-public:
+private:
     std::string type;               // 시스템 종류 (예: "OS", "VM", "HW")
     std::vector<Port> ports;       // 도형이 보유한 포트 목록
+    std::vector<Area*> subAreas;
+    std::vector<Node*> nodes;
+public:
+    inline std::string& getType(){
+        return type;
+    }
 
     /**
      * @brief 생성자
@@ -21,7 +30,10 @@ public:
      * @param h 높이
      * @param type 시스템 타입
      */
-    Area(double x, double y, double w, double h, const std::string& type);
+    Area(double x, double y, double w, double h, const std::string& type, MyCanvas* parent);
+
+    /** @brief 소멸자 */
+    ~Area();
 
     /**
      * @brief 도형을 그리는 함수
@@ -30,13 +42,19 @@ public:
      * @param offset 화면 오프셋
      * @param selected 선택 여부
      */
-    void Draw(wxDC& dc, double scale, const wxPoint2DDouble& offset, bool selected) const override;
+    void Draw(wxDC& dc) const override;
 
     /**
-     * @brief 속성 편집 다이얼로그 열기 (이름, 포트 수 설정)
+     * @brief 속성 편집 다이얼로그 열기 (이름, 포트 수 설정, 자식 추가)
      * @param parent 부모 윈도우
      */
-    void OpenPropertyDialog(wxWindow* parent) override;
+    void OpenPropertyDialog(MyCanvas* parent) override;
+
+    /**
+     * @brief 자식 추가 다이얼로그 열기
+     * @param parent 부모 윈도우
+     */
+    void OpenAddShapeDialog(MyCanvas* parent);
 
     /**
      * @brief 포트 수를 설정하고 재배치
@@ -60,5 +78,18 @@ public:
      * @param line 직렬화된 문자열
      * @return Area 객체 포인터
      */
-    static Area* Deserialize(const std::string& line);
+    static Area* Deserialize(const std::string& line, MyCanvas* parent);
+
+    void AddSubArea(Area* area);
+    void AddNode(Node* node);
+
+    const std::vector<Area*>& GetSubAreas() const;
+    const std::vector<Node*>& GetNodes() const;
+
+
+    const Port* HitTestPort(const wxPoint& pos, const Shape** outShape) const override;
+
+    bool HitTestShape(wxPoint& mouse) override;
+
+    bool OpenProperty(wxPoint& pos) override;
 };

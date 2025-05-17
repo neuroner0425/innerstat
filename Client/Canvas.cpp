@@ -1,4 +1,5 @@
 #include <wx/dcbuffer.h>
+#include <stdio.h>
 
 #include <sstream>
 #include <fstream>
@@ -15,104 +16,71 @@ EVT_LEFT_UP(MyCanvas::OnLeftUp)
 EVT_MOTION(MyCanvas::OnMotion)
 wxEND_EVENT_TABLE()
 
-MyCanvas::MyCanvas(wxWindow* parent, wxListBox* list)
-    : wxPanel(parent), shapeList(list) {
+MyCanvas::MyCanvas(wxWindow* parent, wxTreeCtrl* t)
+    : wxPanel(parent), shapeTree(t) {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     Bind(wxEVT_LEFT_DCLICK, &MyCanvas::OnLeftDClick, this);
 }
 
 MyCanvas::~MyCanvas() {
-    for (auto* shape : shapes)
-        delete shape;
+    for (Area* area : areas)
+        delete area;
+    
+    areas.clear();
 }
 
 void MyCanvas::AddNewArea(const std::string& areaType) {
-    shapes.push_back(new Area(100, 100 + shapes.size() * 30, 150, 80, areaType));
-    selectedIndex = shapes.size() - 1;
-    RefreshList();
-    shapeList->SetSelection(selectedIndex);
+    areas.push_back(new Area(100, 100 + areas.size() * 30, 150, 80, areaType, this));
+    selectedShape = areas.back();
+    RefreshTree();
+    // TODO
+    // shapeTree->SetSelection(selectedShape);
     Refresh();
-}
-
-void MyCanvas::AddNewNode(const std::string& nodeType) {
-    shapes.push_back(new Node(300, 100 + shapes.size() * 30, 100, 50, nodeType));
-    selectedIndex = shapes.size() - 1;
-    RefreshList();
-    shapeList->SetSelection(selectedIndex);
-    Refresh();
-}
-
-void MyCanvas::SelectShape(int index) {
-    if (index >= 0 && index < static_cast<int>(shapes.size())) {
-        selectedIndex = index;
-        Refresh();
-    }
 }
 
 void MyCanvas::SaveToFile(const std::string& path) {
     std::ofstream out(path);
-    for (const auto* shape : shapes) {
-        out << shape->Serialize() << "\n";
+    for (const Area* area : areas) {
+        out << area->Serialize() << "\n";
     }
-    for (const auto& conn : connections) {
+    for (const Connection& conn : connections) {
         out << "Connection " << conn.from->id << " " << conn.to->id << "\n";
     }
 }
 
 void MyCanvas::LoadFromFile(const std::string& path) {
-    std::ifstream in(path);
-    if (!in) return;
-
-    shapes.clear();
-    connections.clear();
-
-    std::string line;
-    std::unordered_map<std::string, const Port*> portMap;
-
-    while (std::getline(in, line)) {
-        if (line.rfind("Area", 0) == 0) {
-            auto* area = Area::Deserialize(line);
-            for (const auto& port : area->GetPorts())
-                portMap[port.id] = &port;
-            shapes.push_back(area);
-        } else if (line.rfind("Node", 0) == 0) {
-            auto* node = Node::Deserialize(line);
-            for (const auto& port : node->GetPorts())
-                portMap[port.id] = &port;
-            shapes.push_back(node);
-        } else if (line.rfind("Connection", 0) == 0) {
-            std::istringstream iss(line);
-            std::string tag, fromID, toID;
-            iss >> tag >> fromID >> toID;
-            if (portMap.find(fromID) != portMap.end() && portMap.find(toID) != portMap.end()) {
-                connections.emplace_back(portMap[fromID], portMap[toID]);
-            }
-        }
-    }
-    Refresh();
+    // TODO
 }
 
-void MyCanvas::RefreshList() {
-    shapeList->Clear();
-    for (size_t i = 0; i < shapes.size(); ++i) {
-        if (dynamic_cast<Area*>(shapes[i]))
-            shapeList->Append(wxString::Format("Area %zu", i));
-        else if (dynamic_cast<Node*>(shapes[i]))
-            shapeList->Append(wxString::Format("Node %zu", i));
-        else
-            shapeList->Append(wxString::Format("Shape %zu", i));
+void MyCanvas::RefreshTree() {
+    shapeTree->DeleteAllItems();
+    shapeMap.clear();
+
+    wxTreeItemId root = shapeTree->AddRoot("Systems");
+
+    for (size_t i = 0; i < areas.size(); ++i) {
+        if (auto* area = dynamic_cast<Area*>(areas[i])) {
+            AppendAreaToTree(root, area);
+        }
     }
+
+    shapeTree->ExpandAll();
 }
 
 void MyCanvas::OnPaint(wxPaintEvent&) {
     wxAutoBufferedPaintDC dc(this);
     dc.Clear();
+    
+    for (size_t i = 0; i < areas.size(); ++i)
+        areas[i]->Draw(dc);
 
-    for (const auto& c : connections)
+    for (const Connection& c : connections)
         c.Draw(dc, scale, offset);
-
-    for (size_t i = 0; i < shapes.size(); ++i)
-        shapes[i]->Draw(dc, scale, offset, i == selectedIndex);
+    
+    dc.SetBrush(wxBrush(*wxRED
+    ));
+    dc.SetPen(*wxBLACK_PEN);
+    dc.DrawCircle(wxPoint(offset.m_x, offset.m_y), 10*scale);
 }
 
 void MyCanvas::OnMouseWheel(wxMouseEvent& evt) {
@@ -147,7 +115,9 @@ void MyCanvas::OnLeftDown(wxMouseEvent& evt) {
 
     // 1. 클릭된 포트가 있는지 검사
     const Shape* clickedShape = nullptr;
-    const Port* clickedPort = HitTestPort(mouse, &clickedShape);
+    const Port* clickedPort = nullptr;
+
+    for(Area* area : areas) if((clickedPort = area->HitTestPort(mouse, &clickedShape))) break;
 
     if (clickedPort) {
         // 2-1. 이미 연결 대기 중인 포트가 존재한다면, 연결 생성
@@ -171,31 +141,11 @@ void MyCanvas::OnLeftDown(wxMouseEvent& evt) {
     activeHandle = HandleType::None;
 
     // 3. 도형 핸들 클릭 검사 (크기 조절 여부 판단)
-    for (int i = shapes.size() - 1; i >= 0; --i) {
-        activeHandle = shapes[i]->HitTestHandle(mouse, scale, offset);
-        if (activeHandle != HandleType::None) {
-            selectedIndex = i;
-            resizing = true;
-            shapeList->SetSelection(i);
-            CaptureMouse();  // 마우스 캡처로 정확한 드래그 감지
-            Refresh();
-            return;
-        }
-
-        // 4. 도형 내부 클릭 시 → 도형 이동 시작
-        if (shapes[i]->Contains(mouse, scale, offset)) {
-            selectedIndex = i;
-            dragging = true;
-            shapeList->SetSelection(i);
-            CaptureMouse();
-            Refresh();
-            return;
-        }
-    }
+    for(Area* area : areas) if(area->HitTestShape(mouse)) return;
 
     // 5. 아무 도형도 클릭하지 않음 → 패닝 모드
-    selectedIndex = -1;
-    shapeList->DeselectAll();
+    UnSelectShape();
+    shapeTree->UnselectAll();
     panning = true;
     CaptureMouse();
     Refresh();
@@ -218,14 +168,14 @@ void MyCanvas::OnMotion(wxMouseEvent& evt) {
     lastMouse = now;
 
     // 1. 도형 이동 처리
-    if (dragging && selectedIndex >= 0) {
-        shapes[selectedIndex]->pos.m_x += delta.x / scale;
-        shapes[selectedIndex]->pos.m_y += delta.y / scale;
+    if (dragging && selectedShape != nullptr) {
+        selectedShape->pos.m_x += delta.x / scale;
+        selectedShape->pos.m_y += delta.y / scale;
     }
 
     // 2. 도형 크기 조절 처리
-    else if (resizing && selectedIndex >= 0) {
-        Shape* s = shapes[selectedIndex];
+    else if (resizing && selectedShape != nullptr) {
+        Shape* s = selectedShape;
         double dx = delta.x / scale, dy = delta.y / scale;
 
         switch (activeHandle) {
@@ -254,29 +204,57 @@ void MyCanvas::OnMotion(wxMouseEvent& evt) {
     Refresh();
 }
 
-
-const Port* MyCanvas::HitTestPort(const wxPoint& pos, const Shape** outShape) const {
-    for (const auto* shape : shapes) {
-        const auto& ports = shape->GetPorts();
-        for (const auto& port : ports) {
-            wxPoint screenPos = port.GetScreenPosition(shape->pos, shape->width, shape->height, scale, offset);
-            wxRect hitbox(screenPos.x - 6, screenPos.y - 6, 12, 12);
-            if (hitbox.Contains(pos)) {
-                if (outShape) *outShape = shape;
-                return &port;
-            }
-        }
-    }
-    return nullptr;
-}
-
 void MyCanvas::OnLeftDClick(wxMouseEvent& evt) {
     wxPoint pos = evt.GetPosition();
-    for (auto* shape : shapes) {
-        if (shape->Contains(pos, scale, offset)) {
-            shape->OpenPropertyDialog(this);
-            Refresh();
-            return;
+    for (std::vector<Area*>::const_reverse_iterator it = areas.rbegin(); it != areas.rend(); ++it) {
+        if((*it)->OpenProperty(pos)) return;
+    }
+}
+
+void MyCanvas::ResizingShape(Shape* shape, HandleType& handleType){
+    this->activeHandle = handleType;
+    SelectShape(shape);
+    resizing = true;
+    // TODO
+    // shapeTree->SetSelection(i);
+    CaptureMouse();  // 마우스 캡처로 정확한 드래그 감지
+    Refresh();
+}
+
+void MyCanvas::DraggingShape(Shape* shape){
+    SelectShape(shape);
+    dragging = true;
+    // TODO
+    // shapeTree->SetSelection(i);
+    CaptureMouse();
+    Refresh();
+}
+
+void MyCanvas::AppendAreaToTree(wxTreeItemId parentId, Area* area) {
+    wxString label = wxString::Format("Area [%s]", area->getType());
+    wxTreeItemId areaId = shapeTree->AppendItem(parentId, label);
+    shapeMap[areaId] = area;
+
+    for (auto* sub : area->GetSubAreas()) {
+        AppendAreaToTree(areaId, sub);
+    }
+    for (auto* node : area->GetNodes()) {
+        wxString nlabel = wxString::Format("Node [%s]", node->pidIdentifier);
+        wxTreeItemId nid = shapeTree->AppendItem(areaId, nlabel);
+        shapeMap[nid] = node;
+    }
+}
+
+void MyCanvas::OnTreeSelectionChanged(wxTreeItemId itemId) {
+    auto it = shapeMap.find(itemId);
+    if (it != shapeMap.end()) {
+        Shape* s = it->second;
+        for (size_t i = 0; i < areas.size(); ++i) {
+            if (areas[i] == s) {
+                SelectShape(areas[i]);
+                Refresh();
+                return;
+            }
         }
     }
 }

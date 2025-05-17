@@ -1,5 +1,5 @@
 #include <wx/wx.h>
-#include <wx/listbox.h>
+#include <wx/treectrl.h>
 #include "Canvas.h"
 
 class MainFrame : public wxFrame {
@@ -10,20 +10,19 @@ public:
     /**
      * @brief MainFrame 생성자 - UI 초기화 및 이벤트 바인딩
      */
+
     MainFrame() : wxFrame(nullptr, wxID_ANY, "Inner Stat", wxDefaultPosition, wxSize(1000, 600)) {
         wxBoxSizer *sizer = new wxBoxSizer(wxHORIZONTAL);
         wxPanel *leftPanel = new wxPanel(this);
         wxBoxSizer *leftSizer = new wxBoxSizer(wxVERTICAL);
-        wxListBox *shapeList = new wxListBox(leftPanel, wxID_ANY);
+        wxTreeCtrl *shapeTree = new wxTreeCtrl(leftPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTR_HAS_BUTTONS);
         wxButton *addAreaBtn = new wxButton(leftPanel, wxID_ANY, "Add Area");
-        wxButton *addNodeBtn = new wxButton(leftPanel, wxID_ANY, "Add Node");
 
         leftSizer->Add(addAreaBtn, 0, wxEXPAND | wxBOTTOM, 3);
-        leftSizer->Add(addNodeBtn, 0, wxEXPAND | wxBOTTOM, 5);
-        leftSizer->Add(shapeList, 1, wxEXPAND | wxBOTTOM, 5);
+        leftSizer->Add(shapeTree, 1, wxEXPAND | wxBOTTOM, 5);
         leftPanel->SetSizer(leftSizer);
 
-        canvas = new MyCanvas(this, shapeList);
+        canvas = new MyCanvas(this, shapeTree);
 
         sizer->Add(leftPanel, 0, wxEXPAND | wxALL, 5);
         sizer->Add(canvas, 1, wxEXPAND | wxALL, 5);
@@ -34,11 +33,8 @@ public:
         addAreaBtn->Bind(wxEVT_BUTTON, [=](wxCommandEvent &) {
             canvas->AddNewArea("os");
         });
-        addNodeBtn->Bind(wxEVT_BUTTON, [=](wxCommandEvent &) {
-            canvas->AddNewNode("PID 1234");
-        });
-        shapeList->Bind(wxEVT_LISTBOX, [=](wxCommandEvent &evt) {
-            canvas->SelectShape(evt.GetSelection());
+        shapeTree->Bind(wxEVT_TREE_SEL_CHANGED, [=](wxTreeEvent &evt) {
+            canvas->OnTreeSelectionChanged(evt.GetItem());
         });
 
         wxMenuBar *menuBar = new wxMenuBar();

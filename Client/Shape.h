@@ -2,6 +2,8 @@
 #include <wx/wx.h>
 #include "Port.h"
 
+class MyCanvas;
+
 /**
  * @brief 도형의 크기 조절을 위한 핸들 타입 정의
  */
@@ -21,6 +23,8 @@ public:
     wxPoint2DDouble pos;   // 도형의 좌상단 좌표
     double width;          // 도형 너비
     double height;         // 도형 높이
+    bool selected = false;
+    MyCanvas* parent = nullptr;
 
     /**
      * @brief 생성자
@@ -29,7 +33,7 @@ public:
      * @param w 도형 너비
      * @param h 도형 높이
      */
-    Shape(double x, double y, double w, double h);
+    Shape(double x, double y, double w, double h, MyCanvas* parent);
 
     virtual ~Shape() = default;
 
@@ -40,13 +44,13 @@ public:
      * @param offset 화면 오프셋
      * @param selected 선택 여부
      */
-    virtual void Draw(wxDC& dc, double scale, const wxPoint2DDouble& offset, bool selected) const = 0;
+    virtual void Draw(wxDC& dc) const = 0;
 
     /**
      * @brief 속성 다이얼로그를 여는 가상 함수
      *        (Area/Node에서 오버라이드됨)
      */
-    virtual void OpenPropertyDialog(wxWindow* parent) { }
+    virtual void OpenPropertyDialog(MyCanvas* parent) { }
 
     /**
      * @brief 주어진 화면 좌표가 도형 내부인지 검사
@@ -55,7 +59,7 @@ public:
      * @param offset 캔버스 오프셋
      * @return true이면 도형 내부
      */
-    virtual bool Contains(const wxPoint& screenPt, double scale, const wxPoint2DDouble& offset) const;
+    virtual bool Contains(const wxPoint& screenPt) const;
 
     /**
      * @brief 도형을 직렬화하여 저장 가능한 문자열로 반환
@@ -69,7 +73,7 @@ public:
      * @param offset 오프셋
      * @return 핸들 타입 (없으면 HandleType::None)
      */
-    HandleType HitTestHandle(const wxPoint& screenPt, double scale, const wxPoint2DDouble& offset) const;
+    HandleType HitTestHandle(const wxPoint& screenPt) const;
 
     /**
      * @brief 도형이 보유한 포트 목록을 반환 (기본은 빈 목록)
@@ -78,4 +82,10 @@ public:
         static std::vector<Port> empty;
         return empty;
     }
+
+    virtual const Port* HitTestPort(const wxPoint& pos, const Shape** outShape) const;
+
+    virtual bool HitTestShape(wxPoint& mouse);
+
+    virtual bool OpenProperty(wxPoint& pos);
 };
