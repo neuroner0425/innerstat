@@ -7,20 +7,21 @@
 
 class MyCanvas;
 
+enum class AreaType {
+    None = 0,
+    OS, VM, Container, Network
+};
+
 /**
  * @brief Area 클래스는 시스템 단위 도형을 나타냅니다.
  *        타입(OS, VM 등)과 포트 정보를 포함하며, 시각화 및 직렬화 기능을 제공합니다.
  */
 class Area : public Shape {
-private:
-    std::string type;               // 시스템 종류 (예: "OS", "VM", "HW")
+public:
+    AreaType type;               // 시스템 종류 (예: "OS", "VM", "HW")
     std::vector<Port> ports;       // 도형이 보유한 포트 목록
     std::vector<Area*> subAreas;
     std::vector<Node*> nodes;
-public:
-    inline std::string& getType(){
-        return type;
-    }
 
     /**
      * @brief 생성자
@@ -30,7 +31,9 @@ public:
      * @param h 높이
      * @param type 시스템 타입
      */
-    Area(double x, double y, double w, double h, const std::string& type, MyCanvas* parent);
+    Area(double x, double y, double w, double h, 
+        MyCanvas* canvas, Shape* parent, const std::string& label,
+        const AreaType& Type);
 
     /** @brief 소멸자 */
     ~Area();
@@ -46,15 +49,15 @@ public:
 
     /**
      * @brief 속성 편집 다이얼로그 열기 (이름, 포트 수 설정, 자식 추가)
-     * @param parent 부모 윈도우
+     * @param canvas 부모 윈도우
      */
-    void OpenPropertyDialog(MyCanvas* parent) override;
+    void OpenPropertyDialog(MyCanvas* canvas) override;
 
     /**
      * @brief 자식 추가 다이얼로그 열기
-     * @param parent 부모 윈도우
+     * @param canvas 부모 윈도우
      */
-    void OpenAddShapeDialog(MyCanvas* parent);
+    void OpenAddShapeDialog(MyCanvas* canvas);
 
     /**
      * @brief 포트 수를 설정하고 재배치
@@ -78,7 +81,7 @@ public:
      * @param line 직렬화된 문자열
      * @return Area 객체 포인터
      */
-    static Area* Deserialize(const std::string& line, MyCanvas* parent);
+    static Area* Deserialize(const std::string& line, MyCanvas* canvas);
 
     void AddSubArea(Area* area);
     void AddNode(Node* node);
@@ -92,4 +95,34 @@ public:
     bool HitTestShape(wxPoint& mouse) override;
 
     bool OpenProperty(wxPoint& pos) override;
+    
+    inline const std::string getTypeStr() const{
+        switch(type){
+            case AreaType::OS : return "OS";
+            case AreaType::VM : return "VM";
+            case AreaType::Container : return "Container";
+            case AreaType::Network : return "Network";
+            default: return "other";
+        }
+    }
+
+    inline int getTypeInt() const{
+        switch(type){
+            case AreaType::OS : return 1;
+            case AreaType::VM : return 2;
+            case AreaType::Container : return 3;
+            case AreaType::Network : return 4;
+            default: return 0;
+        }
+    }
+
+    static inline AreaType getTypeByInt(int intT){
+        switch(intT){
+            case 1: return AreaType::OS;
+            case 2: return AreaType::VM;
+            case 3: return AreaType::Container;
+            case 4: return AreaType::Network;
+            default: return AreaType::None;
+        }
+    }
 };

@@ -7,6 +7,7 @@
 
 #include "Canvas.h"
 #include "Shape.h"
+#include "Area.h"
 
 wxBEGIN_EVENT_TABLE(MyCanvas, wxPanel)
 EVT_PAINT(MyCanvas::OnPaint)
@@ -20,28 +21,31 @@ MyCanvas::MyCanvas(wxWindow* parent, wxTreeCtrl* t)
     : wxPanel(parent), shapeTree(t) {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     Bind(wxEVT_LEFT_DCLICK, &MyCanvas::OnLeftDClick, this);
+
+    Bind(wxEVT_IDLE, &MyCanvas::OnFirstIdle, this);
 }
 
 MyCanvas::~MyCanvas() {
-    for (Area* area : areas)
-        delete area;
+    for (std::vector<Area*>::const_reverse_iterator it = areas.rbegin(); it != areas.rend(); ++it)
+        delete (*it);
     
     areas.clear();
 }
 
-void MyCanvas::AddNewArea(const std::string& areaType) {
-    areas.push_back(new Area(100, 100 + areas.size() * 30, 150, 80, areaType, this));
+void MyCanvas::AddNewArea(const std::string& label, const AreaType areaType) {
+    areas.push_back(new Area(100, 100 + areas.size() * 30, 150, 150, this, nullptr, "New Area", areaType));
     selectedShape = areas.back();
     RefreshTree();
     // TODO
     // shapeTree->SetSelection(selectedShape);
+    UpdateAllShapesList();
     Refresh();
 }
 
 void MyCanvas::SaveToFile(const std::string& path) {
     std::ofstream out(path);
-    for (const Area* area : areas) {
-        out << area->Serialize() << "\n";
+    for (std::vector<Area*>::const_reverse_iterator it = areas.rbegin(); it != areas.rend(); ++it) {
+        out << (*it)->Serialize() << "\n";
     }
     for (const Connection& conn : connections) {
         out << "Connection " << conn.from->id << " " << conn.to->id << "\n";
@@ -70,9 +74,9 @@ void MyCanvas::RefreshTree() {
 void MyCanvas::OnPaint(wxPaintEvent&) {
     wxAutoBufferedPaintDC dc(this);
     dc.Clear();
-    
-    for (size_t i = 0; i < areas.size(); ++i)
-        areas[i]->Draw(dc);
+
+    for (Shape* s : allShapes)
+        s->Draw(dc);
 
     for (const Connection& c : connections)
         c.Draw(dc, scale, offset);
@@ -80,7 +84,8 @@ void MyCanvas::OnPaint(wxPaintEvent&) {
     dc.SetBrush(wxBrush(*wxRED
     ));
     dc.SetPen(*wxBLACK_PEN);
-    dc.DrawCircle(wxPoint(offset.m_x, offset.m_y), 10*scale);
+    dc.DrawCircle(wxPoint(offset.m_x, offset.m_y), scale * 10);
+    dc.DrawText(wxString(std::to_string(scale)), wxPoint(offset.m_x, offset.m_y));
 }
 
 void MyCanvas::OnMouseWheel(wxMouseEvent& evt) {
@@ -117,7 +122,7 @@ void MyCanvas::OnLeftDown(wxMouseEvent& evt) {
     const Shape* clickedShape = nullptr;
     const Port* clickedPort = nullptr;
 
-    for(Area* area : areas) if((clickedPort = area->HitTestPort(mouse, &clickedShape))) break;
+    for(std::vector<Area*>::const_reverse_iterator it = areas.rbegin(); it != areas.rend(); ++it) if((clickedPort = (*it)->HitTestPort(mouse, &clickedShape))) break;
 
     if (clickedPort) {
         // 2-1. 이미 연결 대기 중인 포트가 존재한다면, 연결 생성
@@ -141,7 +146,7 @@ void MyCanvas::OnLeftDown(wxMouseEvent& evt) {
     activeHandle = HandleType::None;
 
     // 3. 도형 핸들 클릭 검사 (크기 조절 여부 판단)
-    for(Area* area : areas) if(area->HitTestShape(mouse)) return;
+    for(std::vector<Area*>::const_reverse_iterator it = areas.rbegin(); it != areas.rend(); ++it) if((*it)->HitTestShape(mouse)) return;
 
     // 5. 아무 도형도 클릭하지 않음 → 패닝 모드
     UnSelectShape();
@@ -231,7 +236,7 @@ void MyCanvas::DraggingShape(Shape* shape){
 }
 
 void MyCanvas::AppendAreaToTree(wxTreeItemId parentId, Area* area) {
-    wxString label = wxString::Format("Area [%s]", area->getType());
+    wxString label = wxString::Format("%s [%s]", area->label, area->getTypeStr());
     wxTreeItemId areaId = shapeTree->AppendItem(parentId, label);
     shapeMap[areaId] = area;
 
@@ -239,7 +244,7 @@ void MyCanvas::AppendAreaToTree(wxTreeItemId parentId, Area* area) {
         AppendAreaToTree(areaId, sub);
     }
     for (auto* node : area->GetNodes()) {
-        wxString nlabel = wxString::Format("Node [%s]", node->pidIdentifier);
+        wxString nlabel = wxString::Format("%s [PS]", node->label);
         wxTreeItemId nid = shapeTree->AppendItem(areaId, nlabel);
         shapeMap[nid] = node;
     }
@@ -256,5 +261,29 @@ void MyCanvas::OnTreeSelectionChanged(wxTreeItemId itemId) {
                 return;
             }
         }
+    }
+}
+
+void MyCanvas::OnFirstIdle(wxIdleEvent& evt) {
+    wxSize size = GetClientSize();
+    offset = wxPoint2DDouble(size.GetWidth() / 2, size.GetHeight() / 5);
+
+    Unbind(wxEVT_IDLE, &MyCanvas::OnFirstIdle, this);  // 한 번만 실행되도록 해제
+    Refresh();  // 화면 다시 그리기
+}
+
+void MyCanvas::UpdateAllShapesList() {
+    allShapes.clear();
+
+    std::function<void(Area*)> recurse = [&](Area* area) {
+        allShapes.push_back(area);
+        for (Area* sub : area->GetSubAreas())
+            recurse(sub);
+        for (Node* node : area->GetNodes())
+            allShapes.push_back(node);
+    };
+
+    for (Area* a : areas) {
+        recurse(a);
     }
 }

@@ -1,22 +1,22 @@
 #include "Shape.h"
 #include "Canvas.h"
 
-Shape::Shape(double x, double y, double w, double h, MyCanvas* p)
-    : pos(x, y), width(w), height(h), parent(p) { }
+Shape::Shape(double x, double y, double w, double h, MyCanvas* c, Shape* p, const std::string& l)
+    : pos(x, y), width(w), height(h), canvas(c), parent(p), label(l) { }
 
 bool Shape::Contains(const wxPoint& screenPt) const {
-    wxPoint sp(pos.m_x * parent->scale + parent->offset.m_x, pos.m_y * parent->scale + parent->offset.m_y);
-    int w = width * parent->scale;
-    int h = height * parent->scale;
+    wxPoint sp(pos.m_x * canvas->scale + canvas->offset.m_x, pos.m_y * canvas->scale + canvas->offset.m_y);
+    int w = width * canvas->scale;
+    int h = height * canvas->scale;
     return wxRect(sp.x, sp.y, w, h).Contains(screenPt);
 }
 
 HandleType Shape::HitTestHandle(const wxPoint& mouse) const {
     const int hs = 6; // 핸들 크기 (6x6)
 
-    wxPoint sp(pos.m_x * parent->scale + parent->offset.m_x, pos.m_y * parent->scale + parent->offset.m_y);
-    int w = width * parent->scale;
-    int h = height * parent->scale;
+    wxPoint sp(pos.m_x * canvas->scale + canvas->offset.m_x, pos.m_y * canvas->scale + canvas->offset.m_y);
+    int w = width * canvas->scale;
+    int h = height * canvas->scale;
 
     wxPoint handles[8] = {
         {sp.x, sp.y},                   // TopLeft
@@ -42,7 +42,7 @@ HandleType Shape::HitTestHandle(const wxPoint& mouse) const {
 const Port* Shape::HitTestPort(const wxPoint& pos, const Shape** outShape) const{
     const std::vector<Port>& ports = this->GetPorts();
     for (const Port& port : ports) {
-        wxPoint screenPos = port.GetScreenPosition(this->pos, this->width, this->height, parent->scale, parent->offset);
+        wxPoint screenPos = port.GetScreenPosition(this->pos, this->width, this->height, canvas->scale, canvas->offset);
         wxRect hitbox(screenPos.x - 6, screenPos.y - 6, 12, 12);
         if (hitbox.Contains(pos)) {
             if (outShape) *outShape = this;
@@ -55,12 +55,12 @@ const Port* Shape::HitTestPort(const wxPoint& pos, const Shape** outShape) const
 bool Shape::HitTestShape(wxPoint& mouse){
     HandleType activeHandle = this->HitTestHandle(mouse);
     if (activeHandle != HandleType::None) {
-        parent->ResizingShape(this, activeHandle);
+        canvas->ResizingShape(this, activeHandle);
         return true;
     }
 
     if (Contains(mouse)) {
-        parent->DraggingShape(this);
+        canvas->DraggingShape(this);
         return true;
     }
     return false;
@@ -68,8 +68,9 @@ bool Shape::HitTestShape(wxPoint& mouse){
 
 bool Shape::OpenProperty(wxPoint& pos){
     if (Contains(pos)) {
-        OpenPropertyDialog(parent);
-        parent->Refresh();
+        OpenPropertyDialog(canvas);
+        canvas->UpdateAllShapesList();
+        canvas->Refresh();
         return true;
     }
     return false;

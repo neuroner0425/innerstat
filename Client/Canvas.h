@@ -32,7 +32,7 @@ public:
      * @brief 새로운 Area 추가
      * @param areaType Area 종류 문자열
      */
-    void AddNewArea(const std::string& areaType);
+    void AddNewArea(const std::string& label, const AreaType areaType);
 
     /**
      * @brief Shape의 포인터로 선택
@@ -90,10 +90,14 @@ public:
      */
     void OnTreeSelectionChanged(wxTreeItemId itemId);  // 선택 연동
 
+    void UpdateAllShapesList();
+
 private:
     std::vector<Area*> areas;                // 도형 목록
     wxTreeCtrl* shapeTree;                      // 리스트 UI 컨트롤
     std::map<wxTreeItemId, Shape*> shapeMap;
+
+    std::vector<Shape*> allShapes;
 
     bool dragging = false;
     bool resizing = false;
@@ -123,6 +127,8 @@ private:
     void OnLeftDClick(wxMouseEvent& evt);
 
     void AppendAreaToTree(wxTreeItemId parentId, Area* area);
+
+    void OnFirstIdle(wxIdleEvent& evt);
 
     wxDECLARE_EVENT_TABLE();
 };

@@ -13,7 +13,6 @@ class MyCanvas;
 class Node : public Shape {
 public:
     std::vector<Port> ports;       // 포트 목록
-    std::string pidIdentifier;     // PID 또는 식별자
     bool active;                   // 활성 상태
     bool overloaded;               // 과부하 상태
 
@@ -25,7 +24,8 @@ public:
      * @param h 높이
      * @param pid PID 문자열
      */
-    Node(double x, double y, double w, double h, const std::string& pid, MyCanvas* parent);
+    Node(double x, double y, double w, double h,
+        MyCanvas* canvas, Shape* parent, const std::string& label);
 
     /**
      * @brief 도형 그리기
@@ -38,9 +38,9 @@ public:
 
     /**
      * @brief 속성 설정 다이얼로그 열기
-     * @param parent 부모 창
+     * @param canvas 부모 창
      */
-    void OpenPropertyDialog(MyCanvas* parent) override;
+    void OpenPropertyDialog(MyCanvas* canvas) override;
 
     /**
      * @brief 포트 개수 설정 및 재배치
@@ -61,5 +61,5 @@ public:
     /**
      * @brief 문자열로부터 Node 객체 생성
      */
-    static Node* Deserialize(const std::string& line, MyCanvas* parent);
+    static Node* Deserialize(const std::string& line, MyCanvas* canvas);
 };

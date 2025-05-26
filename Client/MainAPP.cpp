@@ -1,5 +1,6 @@
 #include <wx/wx.h>
 #include <wx/treectrl.h>
+#include <wx/splitter.h>
 #include "Canvas.h"
 
 class MainFrame : public wxFrame {
@@ -12,8 +13,8 @@ public:
      */
 
     MainFrame() : wxFrame(nullptr, wxID_ANY, "Inner Stat", wxDefaultPosition, wxSize(1000, 600)) {
-        wxBoxSizer *sizer = new wxBoxSizer(wxHORIZONTAL);
-        wxPanel *leftPanel = new wxPanel(this);
+        wxSplitterWindow *splitter = new wxSplitterWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxSP_BORDER | wxSP_LIVE_UPDATE);
+        wxPanel *leftPanel = new wxPanel(splitter);
         wxBoxSizer *leftSizer = new wxBoxSizer(wxVERTICAL);
         wxTreeCtrl *shapeTree = new wxTreeCtrl(leftPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTR_HAS_BUTTONS);
         wxButton *addAreaBtn = new wxButton(leftPanel, wxID_ANY, "Add Area");
@@ -22,16 +23,17 @@ public:
         leftSizer->Add(shapeTree, 1, wxEXPAND | wxBOTTOM, 5);
         leftPanel->SetSizer(leftSizer);
 
-        canvas = new MyCanvas(this, shapeTree);
+        canvas = new MyCanvas(splitter, shapeTree);
 
-        sizer->Add(leftPanel, 0, wxEXPAND | wxALL, 5);
-        sizer->Add(canvas, 1, wxEXPAND | wxALL, 5);
+        splitter->SetMinimumPaneSize(20);
 
-        SetSizer(sizer);
+        splitter->SplitVertically(leftPanel, canvas);
+
+        splitter->SetSashPosition(150);
 
         // 버튼 및 리스트 이벤트 바인딩
         addAreaBtn->Bind(wxEVT_BUTTON, [=](wxCommandEvent &) {
-            canvas->AddNewArea("os");
+            addTopLevelArea();
         });
         shapeTree->Bind(wxEVT_TREE_SEL_CHANGED, [=](wxTreeEvent &evt) {
             canvas->OnTreeSelectionChanged(evt.GetItem());
@@ -59,6 +61,38 @@ public:
                 canvas->SaveToFile(dlg.GetPath().ToStdString());
             }
         }, wxID_SAVE);
+    }
+
+    void addTopLevelArea(){
+        wxDialog dlg(canvas, wxID_ANY, "Add Area");
+        wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
+        
+        wxBoxSizer* midSizer = new wxBoxSizer(wxVERTICAL);
+        wxBoxSizer* bottomSizer = new wxBoxSizer(wxHORIZONTAL);
+        
+        wxArrayString types = { "Other", "OS", "VM", "Container", "Network" };
+        
+        wxTextCtrl* labelCtrl = new wxTextCtrl(&dlg, wxID_ANY, wxString("New Area"));
+        wxChoice* typeCtrl = new wxChoice(&dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, types);
+
+        midSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Label:"), 0, wxALL, 5);
+        midSizer->Add(labelCtrl, 0, wxEXPAND | wxALL, 5);
+        midSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Type:"), 0, wxALL, 5);
+        midSizer->Add(typeCtrl, 0, wxEXPAND | wxALL, 5);
+
+        bottomSizer->Add(new wxButton(&dlg, wxID_OK), 0, wxALL, 10);
+        bottomSizer->Add(new wxButton(&dlg, wxID_CANCEL), 0, wxALL, 10);
+        
+        sizer->Add(midSizer, 1, wxEXPAND | wxALL, 10);
+        sizer->Add(bottomSizer, 0, wxALIGN_CENTER);
+        
+        dlg.SetSizerAndFit(sizer);
+        dlg.SetSize(wxSize(200, -1));
+
+        int status = dlg.ShowModal();
+        if (status == wxID_OK) {
+            canvas->AddNewArea(labelCtrl->GetValue().ToStdString(), Area::getTypeByInt(typeCtrl->GetSelection()));
+        }
     }
 };
 
