@@ -14,6 +14,14 @@ enum class HandleType {
     BottomLeft, Bottom, BottomRight
 };
 
+class Padding {
+public:
+    Padding(wxDouble size = 40){
+        left = right = top = bottom = size / 2;
+    };
+    wxDouble left, right, top, bottom;
+};
+
 /**
  * @brief Area/Node의 공통 기반 클래스
  *        위치, 크기, 포트 정보와 도형 인터페이스를 정의
@@ -23,9 +31,13 @@ public:
     wxPoint2DDouble pos;   // 도형의 좌상단 좌표
     double width;          // 도형 너비
     double height;         // 도형 높이
+    MyCanvas* canvas = nullptr;
+    Shape* parent = nullptr;
+    std::string label;
+    
     bool selected = false;
-    MyCanvas* parent = nullptr;
-
+    Padding padding;
+    
     /**
      * @brief 생성자
      * @param x 도형 좌상단 X 좌표
@@ -33,7 +45,7 @@ public:
      * @param w 도형 너비
      * @param h 도형 높이
      */
-    Shape(double x, double y, double w, double h, MyCanvas* parent);
+    Shape(double x, double y, double w, double h, MyCanvas* canvas, Shape* parent, const std::string& label);
 
     virtual ~Shape() = default;
 
@@ -50,7 +62,7 @@ public:
      * @brief 속성 다이얼로그를 여는 가상 함수
      *        (Area/Node에서 오버라이드됨)
      */
-    virtual void OpenPropertyDialog(MyCanvas* parent) { }
+    virtual void OpenPropertyDialog(MyCanvas* canvas) { }
 
     /**
      * @brief 주어진 화면 좌표가 도형 내부인지 검사

@@ -3,11 +3,16 @@
 #include "Canvas.h"
 #include "Port.h"
 #include <wx/textdlg.h>
+#include <wx/textctrl.h>
 #include <wx/spinctrl.h>
+#include <wx/choice.h>
 #include <sstream>
+#include <format>
 
-Area::Area(double x, double y, double w, double h, const std::string& t, MyCanvas* p)
-    : Shape(x, y, w, h, p), type(t) {
+Area::Area(double x, double y, double w, double h, 
+    MyCanvas* c, Shape* p, const std::string& l,
+    const AreaType& t)
+    : Shape(x, y, w, h, c, p, l), type(t) {
     SetPortCount(1);
 }
 
@@ -26,22 +31,30 @@ Area::~Area(){
 void Area::SetPortCount(int count) {
     ports.clear();
     for (int i = 0; i < count; ++i) {
-        double ratio = (i + 1.0) / (count + 1.0); // 0.25, 0.5, 0.75 ...
-        ports.emplace_back("p" + std::to_string(i), wxPoint2DDouble(ratio, 0.0));
+        double ratio = (i + 1.0) / (count + 1.0);
+        std::string id = label + "_p" + std::to_string(i);
+        ports.emplace_back(canvas, id, wxPoint2DDouble(ratio, 0.0));
     }
 }
 
-void Area::OpenPropertyDialog(MyCanvas *parent) {
-    wxDialog dlg(parent, wxID_ANY, "Area Properties");
+
+void Area::OpenPropertyDialog(MyCanvas *canvas) {
+    wxDialog dlg(canvas, wxID_ANY, "Area Properties");
     wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
 
-    wxTextCtrl *typeCtrl = new wxTextCtrl(&dlg, wxID_ANY, type);
+    wxArrayString types = { "Other", "OS", "VM", "Container", "Network" };
+
+    wxTextCtrl *labelctrl = new wxTextCtrl(&dlg, wxID_ANY, wxString(label), wxDefaultPosition, wxDefaultSize);
+    wxChoice *typeCtrl = new wxChoice(&dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, types);
     wxSpinCtrl *portCount = new wxSpinCtrl(&dlg, wxID_ANY);
     wxButton *addShapeBtn = new wxButton(&dlg, wxID_ANY, "Add Shape");
 
+    typeCtrl->SetSelection(getTypeInt());
     portCount->SetRange(0, 10);
     portCount->SetValue(ports.size());
 
+    sizer->Add(new wxStaticText(&dlg, wxID_ANY, "Label:"), 0, wxALL, 5);
+    sizer->Add(labelctrl, 0, wxEXPAND | wxALL, 5);
     sizer->Add(new wxStaticText(&dlg, wxID_ANY, "Type:"), 0, wxALL, 5);
     sizer->Add(typeCtrl, 0, wxEXPAND | wxALL, 5);
     sizer->Add(new wxStaticText(&dlg, wxID_ANY, "Port Count:"), 0, wxALL, 5);
@@ -50,105 +63,143 @@ void Area::OpenPropertyDialog(MyCanvas *parent) {
     sizer->Add(new wxButton(&dlg, wxID_OK), 0, wxALIGN_CENTER | wxALL, 10);
 
     dlg.SetSizerAndFit(sizer);
+    dlg.SetSize(wxSize(200, -1));
 
     addShapeBtn->Bind(wxEVT_BUTTON,[=](wxCommandEvent &evt){
-        this->OpenAddShapeDialog(parent);
+        this->OpenAddShapeDialog(canvas);
     });
 
     if (dlg.ShowModal() == wxID_OK) {
-        type = typeCtrl->GetValue().ToStdString();
+        this->label = labelctrl->GetValue().ToStdString();
+        type = getTypeByInt(typeCtrl->GetSelection());
         SetPortCount(portCount->GetValue());
+        canvas->RefreshTree();
+        canvas->Refresh();
     }
 }
 
-void Area::OpenAddShapeDialog(MyCanvas* parent){
-    wxArrayString choices;
-    choices.Add("Add Sub-Area");
-    choices.Add("Add Node");
+void Area::OpenAddShapeDialog(MyCanvas* canvas) {
+    wxDialog dlg(canvas, wxID_ANY, "Add Shape");
+    wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
-    wxSingleChoiceDialog choiceDlg(parent, "무엇을 추가하시겠습니까?", "Add to Area", choices);
-    if (choiceDlg.ShowModal() == wxID_OK) {
-        int sel = choiceDlg.GetSelection();
+    wxBoxSizer* topSizer = new wxBoxSizer(wxHORIZONTAL);
+    wxBoxSizer* midSizer = new wxBoxSizer(wxVERTICAL);
+    wxBoxSizer* bottomSizer = new wxBoxSizer(wxHORIZONTAL);
 
-        if (sel == 0) {
-            // 하위 Area 추가
-            wxTextEntryDialog nameDlg(parent, "Sub-Area-type", "Sub-Area", "OS");
-            if (nameDlg.ShowModal() == wxID_OK) {
-                std::string subType = nameDlg.GetValue().ToStdString();
-                double offsetX = this->pos.m_x + 30 + this->GetSubAreas().size() * 20;
-                double offsetY = this->pos.m_y + 40;
-                Area* newArea = new Area(offsetX, offsetY, 150, 80, subType, parent);
-                this->AddSubArea(newArea);
-            }
-        } else if (sel == 1) {
-            // Node 추가
-            wxTextEntryDialog pidDlg(parent, "NodePID", "Node", "PID0000");
-            if (pidDlg.ShowModal() == wxID_OK) {
-                std::string pid = pidDlg.GetValue().ToStdString();
-                double offsetX = this->pos.m_x + 30 + this->GetNodes().size() * 20;
-                double offsetY = this->pos.m_y + 100;
-                Node* newNode = new Node(offsetX, offsetY, 100, 50, pid, parent);
-                this->AddNode(newNode);
-            }
+    wxArrayString shapeTypes = { "Area", "OS" };
+    wxArrayString types = { "Other", "OS", "VM", "Container", "Network" };
+
+    wxChoice* shapeTypeCtrl = new wxChoice(&dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, shapeTypes);
+    shapeTypeCtrl->SetSelection(0);
+
+    wxTextCtrl* labelCtrl = nullptr;
+    wxChoice* typeCtrl = nullptr;
+
+    topSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Shape Type:"), 0, wxALL | wxALIGN_CENTER_VERTICAL, 5);
+    topSizer->Add(shapeTypeCtrl, 0, wxALL, 10);
+
+    bottomSizer->Add(new wxButton(&dlg, wxID_OK), 0, wxALL, 10);
+    bottomSizer->Add(new wxButton(&dlg, wxID_CANCEL), 0, wxALL, 10);
+
+    sizer->Add(topSizer, 0, wxEXPAND);
+    sizer->Add(midSizer, 1, wxEXPAND | wxALL, 10);
+    sizer->Add(bottomSizer, 0, wxALIGN_CENTER);
+
+    dlg.SetSizerAndFit(sizer);
+    dlg.SetSize(wxSize(200, -1));
+
+    auto updateMidSizer = [&]() {
+        midSizer->Clear(true);
+
+        midSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Label:"), 0, wxALL, 5);
+        labelCtrl = new wxTextCtrl(&dlg, wxID_ANY, wxString("New Node"));
+        
+        midSizer->Add(labelCtrl, 0, wxEXPAND | wxALL, 5);
+
+        if (shapeTypeCtrl->GetSelection() == 0) {
+            labelCtrl->SetValue(wxString("New Area"));
+            midSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Type:"), 0, wxALL, 5);
+            typeCtrl = new wxChoice(&dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, types);
+            typeCtrl->SetSelection(0);
+            midSizer->Add(typeCtrl, 0, wxEXPAND | wxALL, 5);
+        } else {
+            typeCtrl = nullptr;
         }
 
-        parent->RefreshTree();
-        parent->Refresh();
-        return;
+        dlg.Layout();
+        dlg.Fit();
+    };
+
+    updateMidSizer();
+
+    shapeTypeCtrl->Bind(wxEVT_CHOICE, [&](wxCommandEvent&) {
+        updateMidSizer();
+    });
+
+    int status = dlg.ShowModal();
+    if (status == wxID_OK) {
+        std::string label = labelCtrl->GetValue().ToStdString();
+
+        if (shapeTypeCtrl->GetSelection() == 0) {
+            double offsetX = this->pos.m_x + 30 + this->GetSubAreas().size() * 20;
+            double offsetY = this->pos.m_y + 40;
+
+            AreaType areaType = getTypeByInt(typeCtrl->GetSelection());
+
+            Area* newArea = new Area(offsetX, offsetY, 150, 80, canvas, this, label, areaType);
+            this->AddSubArea(newArea);
+        } else {
+            double offsetX = this->pos.m_x + 30 + this->GetNodes().size() * 20;
+            double offsetY = this->pos.m_y + 100;
+
+            Node* newNode = new Node(offsetX, offsetY, 150, 80, canvas, this, label);
+            this->AddNode(newNode);
+        }
     }
 }
 
 
 void Area::Draw(wxDC& dc) const {
-    wxPoint screenPos(pos.m_x * parent->scale + parent->offset.m_x, pos.m_y * parent->scale + parent->offset.m_y);
-    int w = width * parent->scale;
-    int h = height * parent->scale;
+    wxPoint screenPos(pos.m_x * canvas->scale + canvas->offset.m_x, pos.m_y * canvas->scale + canvas->offset.m_y);
+    int w = width * canvas->scale;
+    int h = height * canvas->scale;
 
     dc.SetBrush(selected ? wxBrush(*wxBLUE) : wxBrush(wxColour(180, 180, 255)));
     dc.SetPen(*wxBLACK_PEN);
-    dc.DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, 10);
-    dc.DrawText("Area: " + type, screenPos + wxPoint(5, 5));
+    dc.DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, 10 * canvas->scale);
+    dc.DrawText(wxString::Format("%s: %s", label, getTypeStr()), screenPos + wxPoint(5, 5));
 
     for (const Port& port : ports) {
-        wxPoint p = port.GetScreenPosition(pos, width, height, parent->scale, parent->offset);
+        wxPoint p = port.GetScreenPosition(pos, width, height, canvas->scale, canvas->offset);
         port.Draw(dc, p);
+        // wxFont font = *wxNORMAL_FONT;
+        // font.SetPointSize( canvas->scale );
+        // dc.SetFont( font );
         dc.DrawText(port.id, p + wxPoint(6, -6));  // 포트 이름 표시
-    }
-
-    // 자식 도형들도 마지막에 그리기
-    for (const Shape* shape : subAreas){
-        shape->Draw(dc);
-    }
-    for (const Shape* shape : nodes){
-        shape->Draw(dc);
     }
 }
 
 std::string Area::Serialize() const {
-    std::ostringstream oss;
-    oss << "Area " << type << " " << pos.m_x << " " << pos.m_y << " " << width << " " << height << " " << ports.size();
-    return oss.str();
+    // TODO
+    return nullptr;
 }
 
-Area* Area::Deserialize(const std::string& line, MyCanvas* parent) {
-    std::istringstream iss(line);
-    std::string tag, type;
-    double x, y, w, h;
-    int portCount;
-
-    iss >> tag >> type >> x >> y >> w >> h >> portCount;
-    Area* area = new Area(x, y, w, h, type, parent);
-    area->SetPortCount(portCount);
-    return area;
+Area* Area::Deserialize(const std::string& line, MyCanvas* canvas) {
+    // TODO
+    return nullptr;
 }
 
 
 void Area::AddSubArea(Area* area) {
     subAreas.push_back(area);
+    canvas->RefreshTree();
+    canvas->Refresh();
 }
 
 void Area::AddNode(Node* node) {
     nodes.push_back(node);
+    canvas->RefreshTree();
+    canvas->Refresh();
 }
 
 const std::vector<Area*>& Area::GetSubAreas() const{
