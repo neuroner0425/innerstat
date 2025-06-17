@@ -50,6 +50,7 @@ DiskLoadPanel::~DiskLoadPanel() {
 }
 
 void DiskLoadPanel::OnStart(wxCommandEvent&) {
+    std::ofstream("disk_overload_status.txt") << "ON";
     long mb=0;
     m_txtFileSize->GetValue().ToLong(&mb);
     if (mb<=0) {
@@ -72,61 +73,75 @@ void DiskLoadPanel::OnStart(wxCommandEvent&) {
     }
 }
 void DiskLoadPanel::OnStop(wxCommandEvent&) {
+    std::ofstream("disk_overload_status.txt") << "OFF";
     m_running = false;
     if (m_thread.joinable()) m_thread.join();
     m_btnStart->Enable(); m_btnStop->Disable();
     m_txtFileName->Enable(); m_txtFileSize->Enable(); m_radioType->Enable();
     m_lblStatus->SetLabel(L"상태: 대기");
 }
-void DiskLoadPanel::DiskWriteTask(std::string fileName, size_t fileSize) {
-    std::vector<char> buf(std::min(fileSize, (size_t)1*1024*1024), 0);
-    std::random_device rd; std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(0,255);
-    for (auto& b : buf) b = (char)dis(gen);
+void DiskLoadPanel::DiskWriteTask(std::string fileName, size_t fileSize)
+{
+    const int numThreads = 4; // 동시 스레드 수. 시스템 상황에 따라 조정
+    std::vector<std::thread> threads;
 
-    while (m_running) {
-        std::ofstream out(fileName, std::ios::binary|std::ios::trunc);
-        if (!out) {
-            CallAfter([this]() {
-                m_lblStatus->SetLabel(L"상태: 파일쓰기 오류");
-            });
-            m_running = false; break;
-        }
-        size_t written=0;
-        while (written < fileSize && m_running) {
-            size_t n = std::min(buf.size(), fileSize-written);
-            out.write(buf.data(), n); written += n;
-        }
-        out.close();
-        if (m_running)
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-}
-void DiskLoadPanel::DiskReadTask(std::string fileName, size_t fileSize) {
-    std::vector<char> buf(std::min(fileSize, (size_t)1*1024*1024), 0);
+    for (int t = 0; t < numThreads; ++t) {
+        threads.emplace_back([&]() {
+            std::vector<char> buf(4 * 1024 * 1024); // 버퍼 4MB
+            std::random_device rd; std::mt19937 gen(rd());
+            std::uniform_int_distribution<> dis(0, 255);
+            for (auto& b : buf) b = (char)dis(gen);
+            std::uniform_int_distribution<size_t> pos_dis(0, fileSize - buf.size());
 
-    while (m_running) {
-        std::ifstream in(fileName, std::ios::binary);
-        if (!in) {
-            CallAfter([this]() {
-                m_lblStatus->SetLabel(L"상태: 파일읽기 오류");
-            });
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            continue;
-        }
-        while (in && m_running) {
-            in.read(buf.data(), buf.size());
-            if (in.eof()) break;
-            if (in.fail() && !in.eof()) {
-                CallAfter([this]() {
-                    m_lblStatus->SetLabel(L"상태: 파일읽기 오류");
-                });
-                m_running = false;
-                break;
+            while (m_running) {
+                std::fstream f(fileName, std::ios::in | std::ios::out | std::ios::binary);
+                if (!f) { // 없으면 새로 생성
+                    std::ofstream nf(fileName, std::ios::binary | std::ios::trunc);
+                    nf.seekp(fileSize - 1); nf.write("", 1); nf.close();
+                    continue;
+                }
+                for (int i = 0; i < 128 && m_running; ++i) {
+                    size_t offset = pos_dis(gen);
+                    f.seekp(offset);
+                    f.write(buf.data(), buf.size());
+                    f.flush(); // flush로 OS 캐시 적중률 감소
+                }
+                f.close();
+                // 슬립 없음 (또는 아주 짧게)
+                // std::this_thread::sleep_for(std::chrono::milliseconds(5));
             }
-        }
-        in.close();
-        if (m_running)
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        });
     }
+    for (auto& th : threads) if (th.joinable()) th.join();
+}
+
+void DiskLoadPanel::DiskReadTask(std::string fileName, size_t fileSize)
+{
+    // (파일 여러 개 읽고 싶으면, 파일명+숫자 등으로 리스트 생성)
+    const int numThreads = 4;
+    std::vector<std::thread> threads;
+    for (int t = 0; t < numThreads; ++t) {
+        threads.emplace_back([&]() {
+            std::vector<char> buf(4 * 1024 * 1024); // 4MB
+            std::random_device rd; std::mt19937 gen(rd());
+            std::uniform_int_distribution<size_t> pos_dis(0, fileSize - buf.size());
+            while (m_running) {
+                std::ifstream f(fileName, std::ios::binary);
+                if (!f) {
+                    CallAfter([this]() {
+                        m_lblStatus->SetLabel(L"상태: 파일없음/읽기 오류");
+                    });
+                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                    continue;
+                }
+                for (int i = 0; i < 512 && m_running; ++i) {
+                    size_t offset = pos_dis(gen);
+                    f.seekg(offset);
+                    f.read(buf.data(), buf.size());
+                }
+                f.close();
+            }
+        });
+    }
+    for (auto& th : threads) if (th.joinable()) th.join();
 }
