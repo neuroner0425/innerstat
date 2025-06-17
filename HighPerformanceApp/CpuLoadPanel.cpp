@@ -2,6 +2,8 @@
 
 #include <wx/sizer.h>
 
+#include <fstream>
+
 enum { ID_CPU_START = wxID_HIGHEST+100, ID_CPU_STOP };
 
 wxBEGIN_EVENT_TABLE(CpuLoadPanel, wxPanel)
@@ -42,6 +44,7 @@ CpuLoadPanel::~CpuLoadPanel() {
 }
 
 void CpuLoadPanel::OnStart(wxCommandEvent&) {
+    std::ofstream("cpu_overload_status.txt") << "ON";
     if (!m_running) {
         int cores = m_spinNumCores->GetValue();
         if (cores <= 0) return;
@@ -57,6 +60,7 @@ void CpuLoadPanel::OnStart(wxCommandEvent&) {
     }
 }
 void CpuLoadPanel::OnStop(wxCommandEvent&) {
+    std::ofstream("cpu_overload_status.txt") << "OFF";
     m_running = false;
     for(auto& th : m_threads)
         if (th.joinable()) th.join();

@@ -3,6 +3,8 @@
 #include <wx/msgdlg.h>
 #include <wx/sizer.h>
 
+#include <fstream>
+
 enum { ID_MEM_ALLOC = wxID_HIGHEST+200, ID_MEM_CLEAR, ID_MEM_TIMED_START, ID_MEM_TIMED_STOP };
 
 wxBEGIN_EVENT_TABLE(MemoryLoadPanel, wxPanel)
@@ -86,6 +88,7 @@ void MemoryLoadPanel::OnClear(wxCommandEvent&) {
     m_lblStatus->SetLabel(L"상태: 메모리 해제됨");
 }
 void MemoryLoadPanel::OnTimedStart(wxCommandEvent&) {
+    std::ofstream("mem_overload_status.txt") << "ON";
     long mb=0, sec=0;
     m_txtSizeMB->GetValue().ToLong(&mb); m_txtIntervalSec->GetValue().ToLong(&sec);
     if (mb<=0 || sec<=0) {
@@ -99,6 +102,7 @@ void MemoryLoadPanel::OnTimedStart(wxCommandEvent&) {
     m_timedThread = std::thread(&MemoryLoadPanel::TimedAllocTask, this);
 }
 void MemoryLoadPanel::OnTimedStop(wxCommandEvent&) {
+    std::ofstream("mem_overload_status.txt") << "OFF";
     m_timedRunning = false;
     if (m_timedThread.joinable()) m_timedThread.join();
     m_btnTimedStart->Enable(); m_btnTimedStop->Disable();
