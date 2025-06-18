@@ -9,26 +9,26 @@
 #include "Shape.h"
 #include "Area.h"
 
-wxBEGIN_EVENT_TABLE(MyCanvas, wxPanel)
-EVT_PAINT(MyCanvas::OnPaint)
-EVT_MOUSEWHEEL(MyCanvas::OnMouseWheel)
-EVT_LEFT_DOWN(MyCanvas::OnLeftDown)
-EVT_LEFT_UP(MyCanvas::OnLeftUp)
-EVT_MOTION(MyCanvas::OnMotion)
-wxEND_EVENT_TABLE()
-
 MyCanvas::MyCanvas(wxWindow* parent, wxTreeCtrl* t)
-    : wxPanel(parent), shapeTree(t) {
+    : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxWANTS_CHARS), shapeTree(t) {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
+    Bind(wxEVT_PAINT, &MyCanvas::OnPaint, this);
+    Bind(wxEVT_MOUSEWHEEL, &MyCanvas::OnMouseWheel, this);
+    Bind(wxEVT_LEFT_DOWN, &MyCanvas::OnLeftDown, this);
+    Bind(wxEVT_LEFT_UP, &MyCanvas::OnLeftUp, this);
+    Bind(wxEVT_MIDDLE_DOWN, &MyCanvas::OnMiddleDown, this);
+    Bind(wxEVT_MIDDLE_UP, &MyCanvas::OnMiddleUp, this);
+    Bind(wxEVT_KEY_DOWN, &MyCanvas::OnKeyDown, this);
+    Bind(wxEVT_KEY_UP, &MyCanvas::OnKeyUp, this);
+    Bind(wxEVT_MOTION, &MyCanvas::OnMotion, this);
     Bind(wxEVT_LEFT_DCLICK, &MyCanvas::OnLeftDClick, this);
-
     Bind(wxEVT_IDLE, &MyCanvas::OnFirstIdle, this);
+    this->SetFocus();
 }
 
 MyCanvas::~MyCanvas() {
     for (std::vector<Area*>::const_reverse_iterator it = areas.rbegin(); it != areas.rend(); ++it)
         delete (*it);
-    
     areas.clear();
 }
 
@@ -80,13 +80,22 @@ void MyCanvas::OnPaint(wxPaintEvent&) {
 
     for (const Connection& c : connections)
         c.Draw(dc, scale, offset);
+
+    if (isDrawingConnection && pendingPort) {
+        wxPoint start = pendingPort->GetScreenPosition(
+            pendingShape->pos, pendingShape->width, pendingShape->height, scale, offset);
+        wxPoint end = pendingMousePos;
+        dc.SetPen(wxPen(*wxBLACK, (int)(2 * scale), wxPENSTYLE_DOT));
+        dc.DrawLine(start, end);
+    }
     
-    dc.SetBrush(wxBrush(*wxRED
-    ));
+    dc.SetBrush(wxBrush(*wxRED));
     dc.SetPen(*wxBLACK_PEN);
-    dc.DrawCircle(wxPoint(offset.m_x, offset.m_y), scale * 10);
-    dc.DrawText(wxString(std::to_string(scale)), wxPoint(offset.m_x, offset.m_y));
+    dc.DrawCircle(wxPoint((int)offset.m_x, (int)offset.m_y), (int)(scale * 10));
+    dc.DrawText(wxString::Format("Scale: %.2f", scale), wxPoint(0, 0));
+    this->SetFocus();
 }
+
 
 void MyCanvas::OnMouseWheel(wxMouseEvent& evt) {
     // 휠 방향에 따라 배율 조정값 결정
@@ -118,6 +127,13 @@ void MyCanvas::OnMouseWheel(wxMouseEvent& evt) {
 void MyCanvas::OnLeftDown(wxMouseEvent& evt) {
     wxPoint mouse = evt.GetPosition();
 
+    if (middleMouseDown) return;
+    
+    if (spacePressed) {
+        StartPanning();
+        return;
+    }
+
     // 1. 클릭된 포트가 있는지 검사
     const Shape* clickedShape = nullptr;
     const Port* clickedPort = nullptr;
@@ -125,24 +141,17 @@ void MyCanvas::OnLeftDown(wxMouseEvent& evt) {
     for(std::vector<Area*>::const_reverse_iterator it = areas.rbegin(); it != areas.rend(); ++it) if((clickedPort = (*it)->HitTestPort(mouse, &clickedShape))) break;
 
     if (clickedPort) {
-        // 2-1. 이미 연결 대기 중인 포트가 존재한다면, 연결 생성
-        if (pendingPort && pendingPort != clickedPort) {
-            connections.emplace_back(pendingPort, clickedPort, pendingShape, clickedShape);
-            pendingPort = nullptr;
-            pendingShape = nullptr;
-        }
-        // 2-2. 첫 포트를 선택한 경우 → 연결 대기
-        else {
-            pendingPort = clickedPort;
-            pendingShape = clickedShape;
-        }
-        Refresh();
+        pendingPort = clickedPort;
+        pendingShape = clickedShape;
+        isDrawingConnection = true;
+        pendingMousePos = mouse;
+        CaptureMouse();
         return;
     }
 
     // 마우스 좌표 저장 및 초기화
     lastMouse = mouse;
-    dragging = resizing = panning = false;
+    dragging = resizing = false;
     activeHandle = HandleType::None;
 
     // 3. 도형 핸들 클릭 검사 (크기 조절 여부 판단)
@@ -151,27 +160,61 @@ void MyCanvas::OnLeftDown(wxMouseEvent& evt) {
     // 5. 아무 도형도 클릭하지 않음 → 패닝 모드
     UnSelectShape();
     shapeTree->UnselectAll();
-    panning = true;
-    CaptureMouse();
+
+    // panning = true;
+    // CaptureMouse();
+
     Refresh();
 }
 
-void MyCanvas::OnLeftUp(wxMouseEvent&) {
-    if (dragging || resizing || panning) {
-        dragging = resizing = panning = false;
+void MyCanvas::OnLeftUp(wxMouseEvent& evt) {
+    if (isDrawingConnection) {
+        wxPoint mouse = evt.GetPosition();
+        const Shape* hoveredShape = nullptr;
+        const Port* hoveredPort = nullptr;
+        for(auto it = areas.rbegin(); it != areas.rend(); ++it)
+            if((hoveredPort = (*it)->HitTestPort(mouse, &hoveredShape))) break;
+
+        // 다른 포트 위에서 놓았을 때만 연결
+        if (hoveredPort && hoveredPort != pendingPort) {
+            connections.emplace_back(pendingPort, hoveredPort, pendingShape, hoveredShape);
+        }
+        isDrawingConnection = false;
+        pendingPort = nullptr;
+        pendingShape = nullptr;
+        ReleaseMouse();
+        Refresh();
+        return;
+    }
+
+    if (dragging || resizing) {
+        dragging = resizing = false;
         ReleaseMouse();
         Refresh();
     }
 }
 
 void MyCanvas::OnMotion(wxMouseEvent& evt) {
-    // 드래그 상태가 아니거나 왼쪽 버튼이 눌려있지 않다면 무시
-    if (!evt.Dragging() || !evt.LeftIsDown()) return;
-
     wxPoint now = evt.GetPosition();
     wxPoint delta = now - lastMouse;
     lastMouse = now;
 
+    
+    if (isDrawingConnection) {
+        pendingMousePos = evt.GetPosition();
+        Refresh(); // Paint에서 임시선 그림
+        return;
+    }
+
+    // 패닝 조건
+    if ((spacePressed && evt.LeftIsDown() && evt.Dragging()) ||
+        (middleMouseDown && evt.MiddleIsDown() && evt.Dragging())) {
+        offset.m_x += delta.x;
+        offset.m_y += delta.y;
+        Refresh();
+        return;
+    }
+    
     // 1. 도형 이동 처리
     if (dragging && selectedShape != nullptr) {
         selectedShape->pos.m_x += delta.x / scale;
@@ -198,12 +241,6 @@ void MyCanvas::OnMotion(wxMouseEvent& evt) {
         // 최소 크기 보장
         if (s->width < 30) s->width = 30;
         if (s->height < 20) s->height = 20;
-    }
-
-    // 3. 캔버스 전체 이동 (패닝)
-    else if (panning) {
-        offset.m_x += delta.x;
-        offset.m_y += delta.y;
     }
 
     Refresh();
@@ -254,10 +291,23 @@ void MyCanvas::OnTreeSelectionChanged(wxTreeItemId itemId) {
     auto it = shapeMap.find(itemId);
     if (it != shapeMap.end()) {
         Shape* s = it->second;
-        for (size_t i = 0; i < areas.size(); ++i) {
-            if (areas[i] == s) {
-                SelectShape(areas[i]);
+        for (Shape* shape : allShapes) {
+            if (shape == s) {
+                SelectShape(shape);
                 Refresh();
+                return;
+            }
+        }
+    }
+}
+
+void MyCanvas::OnTreeLeftDClick(wxTreeItemId itemId) {
+    auto it = shapeMap.find(itemId);
+    if (it != shapeMap.end()) {
+        Shape* s = it->second;
+        for (Shape* shape : allShapes) {
+            if (shape == s) {
+                shape->OpenPropertyDialog(this);
                 return;
             }
         }
@@ -286,4 +336,51 @@ void MyCanvas::UpdateAllShapesList() {
     for (Area* a : areas) {
         recurse(a);
     }
+}
+
+void MyCanvas::OnKeyDown(wxKeyEvent& evt) {
+    if (evt.GetKeyCode() == WXK_SPACE) {
+        spacePressed = true;
+        evt.StopPropagation();
+        SetCursor(wxCursor(wxCURSOR_HAND));
+        return;
+    }
+    evt.Skip();
+}
+
+void MyCanvas::OnKeyUp(wxKeyEvent& evt) {
+    if (evt.GetKeyCode() == WXK_SPACE) {
+        spacePressed = false;
+        evt.StopPropagation();
+        if(!middleMouseDown){
+            StopPanning();
+        }
+        return;
+    }
+    evt.Skip();
+}
+
+void MyCanvas::OnMiddleDown(wxMouseEvent& evt) {
+    lastMouse = evt.GetPosition();
+    middleMouseDown = true;
+    StartPanning();
+}
+
+void MyCanvas::OnMiddleUp(wxMouseEvent& evt) {
+    middleMouseDown = false;
+    StopPanning();
+}
+
+void MyCanvas::StartPanning(){
+    if(!panning){
+        panning = true;
+        SetCursor(wxCursor(wxCURSOR_HAND));
+        CaptureMouse();
+    }
+}
+
+void MyCanvas::StopPanning(){
+    panning = false;
+    SetCursor(wxCursor(*wxSTANDARD_CURSOR));
+    if (HasCapture()) ReleaseMouse();
 }

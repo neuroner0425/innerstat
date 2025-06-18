@@ -38,6 +38,9 @@ public:
         shapeTree->Bind(wxEVT_TREE_SEL_CHANGED, [=](wxTreeEvent &evt) {
             canvas->OnTreeSelectionChanged(evt.GetItem());
         });
+        shapeTree->Bind(wxEVT_TREE_ITEM_ACTIVATED, [=](wxTreeEvent &evt) {
+            canvas->OnTreeLeftDClick(evt.GetItem());
+        });
 
         wxMenuBar *menuBar = new wxMenuBar();
         wxMenu *fileMenu = new wxMenu();
@@ -74,6 +77,8 @@ public:
         
         wxTextCtrl* labelCtrl = new wxTextCtrl(&dlg, wxID_ANY, wxString("New Area"));
         wxChoice* typeCtrl = new wxChoice(&dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, types);
+
+        typeCtrl->SetSelection(1);
 
         midSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Label:"), 0, wxALL, 5);
         midSizer->Add(labelCtrl, 0, wxEXPAND | wxALL, 5);

@@ -21,24 +21,28 @@ void Node::SetPortCount(int count) {
 }
 
 void Node::Draw(wxDC &dc) const {
-    wxPoint screenPos(pos.m_x * canvas->scale + canvas->offset.m_x, pos.m_y * canvas->scale + canvas->offset.m_y);
-    int w = width * canvas->scale;
-    int h = height * canvas->scale;
+    double s = canvas->scale;
+    wxPoint screenPos((int)(pos.m_x * s + canvas->offset.m_x), (int)(pos.m_y * s + canvas->offset.m_y));
+    int w = (int)(width * s);
+    int h = (int)(height * s);
 
     wxColour fill = overloaded ? wxColour(255, 100, 100)
                   : (active ? wxColour(180, 255, 180) : wxColour(200, 200, 200));
 
     dc.SetBrush(selected ? wxBrush(*wxYELLOW) : wxBrush(fill));
     dc.SetPen(*wxBLACK_PEN);
-    dc.DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, 6);
-    dc.DrawText("PID: " + label, screenPos + wxPoint(5, 5));
+    dc.DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, (int)(6 * s));
+
+    wxFont font((int)(9 * s), wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
+    dc.SetFont(font);
+    dc.DrawText("PID: " + label, screenPos + wxPoint((int)(5 * s), (int)(5 * s)));
 
     for (const auto& port : ports) {
-        wxPoint p = port.GetScreenPosition(pos, width, height, canvas->scale, canvas->offset);
+        wxPoint p = port.GetScreenPosition(pos, width, height, s, canvas->offset);
         port.Draw(dc, p);
-        dc.DrawText(port.id, p + wxPoint(6, -6));
     }
 }
+
 
 void Node::OpenPropertyDialog(MyCanvas* canvas) {
     wxDialog dlg(canvas, wxID_ANY, "Node Properties");
