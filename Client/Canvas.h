@@ -90,6 +90,12 @@ public:
      */
     void OnTreeSelectionChanged(wxTreeItemId itemId);  // 선택 연동
 
+    
+    /**
+     * 
+     */
+    void OnTreeLeftDClick(wxTreeItemId itemId);  // 선택 연동
+
     void UpdateAllShapesList();
 
 private:
@@ -99,6 +105,12 @@ private:
 
     std::vector<Shape*> allShapes;
 
+    bool spacePressed = false;    // 스페이스바 상태
+    bool middleMouseDown = false; // 휠클릭 상태
+
+    bool isDrawingConnection = false;
+    wxPoint pendingMousePos; // 마우스 현재 위치
+    
     bool dragging = false;
     bool resizing = false;
     bool panning = false;
@@ -120,6 +132,18 @@ private:
     /** @brief 마우스 클릭 해제(좌클릭) 처리 */
     void OnLeftUp(wxMouseEvent& evt);
 
+    /** @brief 마우스 클릭(휠클릭) 처리 */
+    void OnMiddleDown(wxMouseEvent& evt);
+
+    /** @brief 마우스 클릭 해제(휠클릭) 처리 */
+    void OnMiddleUp(wxMouseEvent& evt);
+
+    /** @brief 키보드 눌림 처리 */
+    void OnKeyDown(wxKeyEvent& evt);
+    
+    /** @brief 키보드 눌림 해제 처리 */
+    void OnKeyUp(wxKeyEvent& evt) ;
+
     /** @brief 마우스 드래그 처리 */
     void OnMotion(wxMouseEvent& evt);
 
@@ -130,5 +154,7 @@ private:
 
     void OnFirstIdle(wxIdleEvent& evt);
 
-    wxDECLARE_EVENT_TABLE();
+    void StartPanning();
+    
+    void StopPanning();
 };

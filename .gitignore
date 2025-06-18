@@ -3,3 +3,7 @@
 .venv/
 
 out/
+build/
+tmp/
+
+CMakeLists.txt

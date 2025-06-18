@@ -8,6 +8,8 @@
 #include <wx/choice.h>
 #include <sstream>
 #include <format>
+#include <stdio.h>
+#include <string>
 
 Area::Area(double x, double y, double w, double h, 
     MyCanvas* c, Shape* p, const std::string& l,
@@ -160,24 +162,28 @@ void Area::OpenAddShapeDialog(MyCanvas* canvas) {
 
 
 void Area::Draw(wxDC& dc) const {
-    wxPoint screenPos(pos.m_x * canvas->scale + canvas->offset.m_x, pos.m_y * canvas->scale + canvas->offset.m_y);
-    int w = width * canvas->scale;
-    int h = height * canvas->scale;
+    wxFont oldFont = dc.GetFont();
+    double s = canvas->scale;
+
+    wxPoint screenPos((int)(pos.m_x * s + canvas->offset.m_x), (int)(pos.m_y * s + canvas->offset.m_y));
+    int w = (int)(width * s);
+    int h = (int)(height * s);
 
     dc.SetBrush(selected ? wxBrush(*wxBLUE) : wxBrush(wxColour(180, 180, 255)));
     dc.SetPen(*wxBLACK_PEN);
-    dc.DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, 10 * canvas->scale);
-    dc.DrawText(wxString::Format("%s: %s", label, getTypeStr()), screenPos + wxPoint(5, 5));
+    dc.DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, (int)(10 * s));
+    
+    wxFont font((int)(9 * s), wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
+    dc.SetFont(font);
+    dc.DrawText(wxString::Format("%s: %s", label, getTypeStr()), screenPos + wxPoint((int)(5 * s), (int)(5 * s)));
+    dc.SetFont(oldFont);
 
     for (const Port& port : ports) {
-        wxPoint p = port.GetScreenPosition(pos, width, height, canvas->scale, canvas->offset);
+        wxPoint p = port.GetScreenPosition(pos, width, height, s, canvas->offset);
         port.Draw(dc, p);
-        // wxFont font = *wxNORMAL_FONT;
-        // font.SetPointSize( canvas->scale );
-        // dc.SetFont( font );
-        dc.DrawText(port.id, p + wxPoint(6, -6));  // 포트 이름 표시
     }
 }
+
 
 std::string Area::Serialize() const {
     // TODO
