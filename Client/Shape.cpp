@@ -1,7 +1,8 @@
 #include "Shape.h"
+#include "Area.h"
 #include "Canvas.h"
 
-Shape::Shape(double x, double y, double w, double h, MyCanvas* c, Shape* p, const std::string& l)
+Shape::Shape(double x, double y, double w, double h, MainCanvas* c, Area* p, const std::string& l)
     : pos(x, y), width(w), height(h), canvas(c), parent(p), label(l) { }
 
 bool Shape::Contains(const wxPoint& screenPt) const {
@@ -54,10 +55,10 @@ const Port* Shape::HitTestPort(const wxPoint& pos, const Shape** outShape) const
 
 bool Shape::HitTestShape(wxPoint& mouse){
     HandleType activeHandle = this->HitTestHandle(mouse);
-    if (activeHandle != HandleType::None) {
-        canvas->ResizingShape(this, activeHandle);
-        return true;
-    }
+    // if (activeHandle != HandleType::None) {
+    //     canvas->ResizingShape(this, activeHandle);
+    //     return true;
+    // }
 
     if (Contains(mouse)) {
         canvas->DraggingShape(this);

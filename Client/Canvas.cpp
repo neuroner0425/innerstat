@@ -9,31 +9,31 @@
 #include "Shape.h"
 #include "Area.h"
 
-MyCanvas::MyCanvas(wxWindow* parent, wxTreeCtrl* t)
+MainCanvas::MainCanvas(wxWindow* parent, wxTreeCtrl* t)
     : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxWANTS_CHARS), shapeTree(t) {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
-    Bind(wxEVT_PAINT, &MyCanvas::OnPaint, this);
-    Bind(wxEVT_MOUSEWHEEL, &MyCanvas::OnMouseWheel, this);
-    Bind(wxEVT_LEFT_DOWN, &MyCanvas::OnLeftDown, this);
-    Bind(wxEVT_LEFT_UP, &MyCanvas::OnLeftUp, this);
-    Bind(wxEVT_MIDDLE_DOWN, &MyCanvas::OnMiddleDown, this);
-    Bind(wxEVT_MIDDLE_UP, &MyCanvas::OnMiddleUp, this);
-    Bind(wxEVT_KEY_DOWN, &MyCanvas::OnKeyDown, this);
-    Bind(wxEVT_KEY_UP, &MyCanvas::OnKeyUp, this);
-    Bind(wxEVT_MOTION, &MyCanvas::OnMotion, this);
-    Bind(wxEVT_LEFT_DCLICK, &MyCanvas::OnLeftDClick, this);
-    Bind(wxEVT_IDLE, &MyCanvas::OnFirstIdle, this);
+    Bind(wxEVT_PAINT, &MainCanvas::OnPaint, this);
+    Bind(wxEVT_MOUSEWHEEL, &MainCanvas::OnMouseWheel, this);
+    Bind(wxEVT_LEFT_DOWN, &MainCanvas::OnLeftDown, this);
+    Bind(wxEVT_LEFT_UP, &MainCanvas::OnLeftUp, this);
+    Bind(wxEVT_MIDDLE_DOWN, &MainCanvas::OnMiddleDown, this);
+    Bind(wxEVT_MIDDLE_UP, &MainCanvas::OnMiddleUp, this);
+    Bind(wxEVT_KEY_DOWN, &MainCanvas::OnKeyDown, this);
+    Bind(wxEVT_KEY_UP, &MainCanvas::OnKeyUp, this);
+    Bind(wxEVT_MOTION, &MainCanvas::OnMotion, this);
+    Bind(wxEVT_LEFT_DCLICK, &MainCanvas::OnLeftDClick, this);
+    Bind(wxEVT_IDLE, &MainCanvas::OnFirstIdle, this);
     this->SetFocus();
 }
 
-MyCanvas::~MyCanvas() {
+MainCanvas::~MainCanvas() {
     for (std::vector<Area*>::const_reverse_iterator it = areas.rbegin(); it != areas.rend(); ++it)
         delete (*it);
     areas.clear();
 }
 
-void MyCanvas::AddNewArea(const std::string& label, const AreaType areaType) {
-    areas.push_back(new Area(100, 100 + areas.size() * 30, 150, 150, this, nullptr, "New Area", areaType));
+void MainCanvas::AddNewArea(const std::string& label, const AreaType areaType) {
+    areas.push_back(new Area(100, 100 + areas.size() * 30, 150, 150, this, nullptr, label, areaType));
     selectedShape = areas.back();
     RefreshTree();
     // TODO
@@ -42,7 +42,7 @@ void MyCanvas::AddNewArea(const std::string& label, const AreaType areaType) {
     Refresh();
 }
 
-void MyCanvas::SaveToFile(const std::string& path) {
+void MainCanvas::SaveToFile(const std::string& path) {
     std::ofstream out(path);
     for (std::vector<Area*>::const_reverse_iterator it = areas.rbegin(); it != areas.rend(); ++it) {
         out << (*it)->Serialize() << "\n";
@@ -52,11 +52,11 @@ void MyCanvas::SaveToFile(const std::string& path) {
     }
 }
 
-void MyCanvas::LoadFromFile(const std::string& path) {
+void MainCanvas::LoadFromFile(const std::string& path) {
     // TODO
 }
 
-void MyCanvas::RefreshTree() {
+void MainCanvas::RefreshTree() {
     shapeTree->DeleteAllItems();
     shapeMap.clear();
 
@@ -71,7 +71,7 @@ void MyCanvas::RefreshTree() {
     shapeTree->ExpandAll();
 }
 
-void MyCanvas::OnPaint(wxPaintEvent&) {
+void MainCanvas::OnPaint(wxPaintEvent&) {
     wxAutoBufferedPaintDC dc(this);
     dc.Clear();
 
@@ -97,7 +97,7 @@ void MyCanvas::OnPaint(wxPaintEvent&) {
 }
 
 
-void MyCanvas::OnMouseWheel(wxMouseEvent& evt) {
+void MainCanvas::OnMouseWheel(wxMouseEvent& evt) {
     // 휠 방향에 따라 배율 조정값 결정
     double factor = (evt.GetWheelRotation() > 0) ? 1.1 : 1.0 / 1.1;
 
@@ -124,7 +124,7 @@ void MyCanvas::OnMouseWheel(wxMouseEvent& evt) {
     Refresh();
 }
 
-void MyCanvas::OnLeftDown(wxMouseEvent& evt) {
+void MainCanvas::OnLeftDown(wxMouseEvent& evt) {
     wxPoint mouse = evt.GetPosition();
 
     if (middleMouseDown) return;
@@ -167,7 +167,7 @@ void MyCanvas::OnLeftDown(wxMouseEvent& evt) {
     Refresh();
 }
 
-void MyCanvas::OnLeftUp(wxMouseEvent& evt) {
+void MainCanvas::OnLeftUp(wxMouseEvent& evt) {
     if (isDrawingConnection) {
         wxPoint mouse = evt.GetPosition();
         const Shape* hoveredShape = nullptr;
@@ -194,7 +194,7 @@ void MyCanvas::OnLeftUp(wxMouseEvent& evt) {
     }
 }
 
-void MyCanvas::OnMotion(wxMouseEvent& evt) {
+void MainCanvas::OnMotion(wxMouseEvent& evt) {
     wxPoint now = evt.GetPosition();
     wxPoint delta = now - lastMouse;
     lastMouse = now;
@@ -246,14 +246,14 @@ void MyCanvas::OnMotion(wxMouseEvent& evt) {
     Refresh();
 }
 
-void MyCanvas::OnLeftDClick(wxMouseEvent& evt) {
+void MainCanvas::OnLeftDClick(wxMouseEvent& evt) {
     wxPoint pos = evt.GetPosition();
     for (std::vector<Area*>::const_reverse_iterator it = areas.rbegin(); it != areas.rend(); ++it) {
         if((*it)->OpenProperty(pos)) return;
     }
 }
 
-void MyCanvas::ResizingShape(Shape* shape, HandleType& handleType){
+void MainCanvas::ResizingShape(Shape* shape, HandleType& handleType){
     this->activeHandle = handleType;
     SelectShape(shape);
     resizing = true;
@@ -263,7 +263,7 @@ void MyCanvas::ResizingShape(Shape* shape, HandleType& handleType){
     Refresh();
 }
 
-void MyCanvas::DraggingShape(Shape* shape){
+void MainCanvas::DraggingShape(Shape* shape){
     SelectShape(shape);
     dragging = true;
     // TODO
@@ -272,7 +272,7 @@ void MyCanvas::DraggingShape(Shape* shape){
     Refresh();
 }
 
-void MyCanvas::AppendAreaToTree(wxTreeItemId parentId, Area* area) {
+void MainCanvas::AppendAreaToTree(wxTreeItemId parentId, Area* area) {
     wxString label = wxString::Format("%s [%s]", area->label, area->getTypeStr());
     wxTreeItemId areaId = shapeTree->AppendItem(parentId, label);
     shapeMap[areaId] = area;
@@ -287,7 +287,7 @@ void MyCanvas::AppendAreaToTree(wxTreeItemId parentId, Area* area) {
     }
 }
 
-void MyCanvas::OnTreeSelectionChanged(wxTreeItemId itemId) {
+void MainCanvas::OnTreeSelectionChanged(wxTreeItemId itemId) {
     auto it = shapeMap.find(itemId);
     if (it != shapeMap.end()) {
         Shape* s = it->second;
@@ -301,7 +301,7 @@ void MyCanvas::OnTreeSelectionChanged(wxTreeItemId itemId) {
     }
 }
 
-void MyCanvas::OnTreeLeftDClick(wxTreeItemId itemId) {
+void MainCanvas::OnTreeLeftDClick(wxTreeItemId itemId) {
     auto it = shapeMap.find(itemId);
     if (it != shapeMap.end()) {
         Shape* s = it->second;
@@ -314,15 +314,15 @@ void MyCanvas::OnTreeLeftDClick(wxTreeItemId itemId) {
     }
 }
 
-void MyCanvas::OnFirstIdle(wxIdleEvent& evt) {
+void MainCanvas::OnFirstIdle(wxIdleEvent& evt) {
     wxSize size = GetClientSize();
     offset = wxPoint2DDouble(size.GetWidth() / 2, size.GetHeight() / 5);
 
-    Unbind(wxEVT_IDLE, &MyCanvas::OnFirstIdle, this);  // 한 번만 실행되도록 해제
+    Unbind(wxEVT_IDLE, &MainCanvas::OnFirstIdle, this);  // 한 번만 실행되도록 해제
     Refresh();  // 화면 다시 그리기
 }
 
-void MyCanvas::UpdateAllShapesList() {
+void MainCanvas::UpdateAllShapesList() {
     allShapes.clear();
 
     std::function<void(Area*)> recurse = [&](Area* area) {
@@ -338,7 +338,7 @@ void MyCanvas::UpdateAllShapesList() {
     }
 }
 
-void MyCanvas::OnKeyDown(wxKeyEvent& evt) {
+void MainCanvas::OnKeyDown(wxKeyEvent& evt) {
     if (evt.GetKeyCode() == WXK_SPACE) {
         spacePressed = true;
         evt.StopPropagation();
@@ -348,7 +348,7 @@ void MyCanvas::OnKeyDown(wxKeyEvent& evt) {
     evt.Skip();
 }
 
-void MyCanvas::OnKeyUp(wxKeyEvent& evt) {
+void MainCanvas::OnKeyUp(wxKeyEvent& evt) {
     if (evt.GetKeyCode() == WXK_SPACE) {
         spacePressed = false;
         evt.StopPropagation();
@@ -360,18 +360,18 @@ void MyCanvas::OnKeyUp(wxKeyEvent& evt) {
     evt.Skip();
 }
 
-void MyCanvas::OnMiddleDown(wxMouseEvent& evt) {
+void MainCanvas::OnMiddleDown(wxMouseEvent& evt) {
     lastMouse = evt.GetPosition();
     middleMouseDown = true;
     StartPanning();
 }
 
-void MyCanvas::OnMiddleUp(wxMouseEvent& evt) {
+void MainCanvas::OnMiddleUp(wxMouseEvent& evt) {
     middleMouseDown = false;
     StopPanning();
 }
 
-void MyCanvas::StartPanning(){
+void MainCanvas::StartPanning(){
     if(!panning){
         panning = true;
         SetCursor(wxCursor(wxCURSOR_HAND));
@@ -379,7 +379,7 @@ void MyCanvas::StartPanning(){
     }
 }
 
-void MyCanvas::StopPanning(){
+void MainCanvas::StopPanning(){
     panning = false;
     SetCursor(wxCursor(*wxSTANDARD_CURSOR));
     if (HasCapture()) ReleaseMouse();

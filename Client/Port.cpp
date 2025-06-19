@@ -1,7 +1,7 @@
 #include "Port.h"
 #include "Canvas.h"
 
-Port::Port(MyCanvas* canvas, const std::string& id, const wxPoint2DDouble& relPos)
+Port::Port(MainCanvas* canvas, const std::string& id, const wxPoint2DDouble& relPos)
     : canvas(canvas), id(id), relativePos(relPos) {}
 
 wxPoint Port::GetScreenPosition(const wxPoint2DDouble& shapePos, double width, double height, double scale, const wxPoint2DDouble& offset) const {
@@ -13,7 +13,8 @@ wxPoint Port::GetScreenPosition(const wxPoint2DDouble& shapePos, double width, d
 
 void Port::Draw(wxDC& dc, const wxPoint& screenPos) const {
     double s = canvas->scale;
+    int width = (int)(8 * s);
     dc.SetBrush(wxBrush(wxColour(100, 100, 255)));
-    dc.SetPen(*wxBLACK_PEN);
-    dc.DrawCircle(screenPos, (int)(4 * s));
+    dc.SetPen(wxPen(*wxBLACK, std::max(1, (int)(1 * s))));
+    dc.DrawRectangle(screenPos - wxPoint(width / 2, width / 2), wxSize(width, width));
 }

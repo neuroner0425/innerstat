@@ -4,7 +4,8 @@
 #include <vector>
 #include <string>
 
-class MyCanvas;
+class MainCanvas;
+class Area;
 
 /**
  * @brief Node 클래스는 말단 프로세스나 PID 단위를 시각화하는 도형입니다.
@@ -25,7 +26,7 @@ public:
      * @param pid PID 문자열
      */
     Node(double x, double y, double w, double h,
-        MyCanvas* canvas, Shape* parent, const std::string& label);
+        MainCanvas* canvas, Area* parent, const std::string& label);
 
     /**
      * @brief 도형 그리기
@@ -40,7 +41,7 @@ public:
      * @brief 속성 설정 다이얼로그 열기
      * @param canvas 부모 창
      */
-    void OpenPropertyDialog(MyCanvas* canvas) override;
+    void OpenPropertyDialog(MainCanvas* canvas) override;
 
     /**
      * @brief 포트 개수 설정 및 재배치
@@ -61,5 +62,5 @@ public:
     /**
      * @brief 문자열로부터 Node 객체 생성
      */
-    static Node* Deserialize(const std::string& line, MyCanvas* canvas);
+    static Node* Deserialize(const std::string& line, MainCanvas* canvas);
 };

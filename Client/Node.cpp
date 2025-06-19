@@ -1,4 +1,5 @@
 #include "Node.h"
+#include "Area.h"
 #include "Canvas.h"
 #include "Port.h"
 #include <wx/textdlg.h>
@@ -6,7 +7,7 @@
 #include <sstream>
 
 Node::Node(double x, double y, double w, double h, 
-    MyCanvas* c, Shape* p, const std::string& l)
+    MainCanvas* c, Area* p, const std::string& l)
     : Shape(x, y, w, h, c, p, l), active(true), overloaded(false){
     SetPortCount(1);
 }
@@ -21,6 +22,7 @@ void Node::SetPortCount(int count) {
 }
 
 void Node::Draw(wxDC &dc) const {
+    wxFont oldFont = dc.GetFont();
     double s = canvas->scale;
     wxPoint screenPos((int)(pos.m_x * s + canvas->offset.m_x), (int)(pos.m_y * s + canvas->offset.m_y));
     int w = (int)(width * s);
@@ -30,21 +32,46 @@ void Node::Draw(wxDC &dc) const {
                   : (active ? wxColour(180, 255, 180) : wxColour(200, 200, 200));
 
     dc.SetBrush(selected ? wxBrush(*wxYELLOW) : wxBrush(fill));
-    dc.SetPen(*wxBLACK_PEN);
+    dc.SetPen(wxPen(*wxBLACK, std::max(1, (int)(2 * s))));
     dc.DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, (int)(6 * s));
 
     wxFont font((int)(9 * s), wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
     dc.SetFont(font);
-    dc.DrawText("PID: " + label, screenPos + wxPoint((int)(5 * s), (int)(5 * s)));
+    dc.DrawText(label, screenPos + wxPoint((int)(5 * s), (int)(5 * s) + h));
+    dc.SetFont(oldFont);
 
     for (const auto& port : ports) {
         wxPoint p = port.GetScreenPosition(pos, width, height, s, canvas->offset);
         port.Draw(dc, p);
     }
+    
+    // if(selected){
+    //     dc.SetPen(wxPen(*wxBLACK, 1));
+    //     const int hs = 6;
+    //     wxPoint sp(pos.m_x * canvas->scale + canvas->offset.m_x, pos.m_y * canvas->scale + canvas->offset.m_y);
+    //     int w = width * canvas->scale;
+    //     int h = height * canvas->scale;
+
+    //     wxPoint handles[8] = {
+    //         {sp.x, sp.y},                   // TopLeft
+    //         {sp.x + w / 2, sp.y},           // Top
+    //         {sp.x + w, sp.y},               // TopRight
+    //         {sp.x, sp.y + h / 2},           // Left
+    //         {sp.x + w, sp.y + h / 2},       // Right
+    //         {sp.x, sp.y + h},               // BottomLeft
+    //         {sp.x + w / 2, sp.y + h},       // Bottom
+    //         {sp.x + w, sp.y + h}            // BottomRight
+    //     };
+
+    //     for (int i = 0; i < 8; ++i) {
+    //         wxRect handle(handles[i].x - hs / 2, handles[i].y - hs / 2, hs, hs);
+    //         dc.DrawRectangle(handle);
+    //     }
+    // }
 }
 
 
-void Node::OpenPropertyDialog(MyCanvas* canvas) {
+void Node::OpenPropertyDialog(MainCanvas* canvas) {
     wxDialog dlg(canvas, wxID_ANY, "Node Properties");
     wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
@@ -74,7 +101,7 @@ std::string Node::Serialize() const {
     return nullptr;
 }
 
-Node* Node::Deserialize(const std::string& line, MyCanvas* p) {
+Node* Node::Deserialize(const std::string& line, MainCanvas* p) {
     // TODO
     return nullptr;
 }
