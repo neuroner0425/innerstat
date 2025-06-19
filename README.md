@@ -39,12 +39,12 @@ InnerStat
 - `MyApp`: wxWidgets 애플리케이션 초기화 클래스
 - `MainFrame`: UI 구성 및 이벤트 바인딩
   - 좌측: `wxTreeCtrl` + "Add Area" 버튼 포함 패널
-  - 우측: `MyCanvas` (도형 배치 캔버스)
+  - 우측: `MainCanvas` (도형 배치 캔버스)
   - 상단 메뉴: 열기/저장 기능 포함
 
 ---
 
-### Canvas.h / Canvas.cpp (`MyCanvas` 클래스)
+### Canvas.h / Canvas.cpp (`MainCanvas` 클래스)
 - 도형(`Area`, `Node`)과 연결선을 표시하는 **시각화 캔버스**
 - 주요 기능:
   - 도형 추가, 선택, 이동, 크기 조절

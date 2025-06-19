@@ -12,7 +12,7 @@
 #include <string>
 
 Area::Area(double x, double y, double w, double h, 
-    MyCanvas* c, Shape* p, const std::string& l,
+    MainCanvas* c, Area* p, const std::string& l,
     const AreaType& t)
     : Shape(x, y, w, h, c, p, l), type(t) {
     SetPortCount(1);
@@ -40,7 +40,7 @@ void Area::SetPortCount(int count) {
 }
 
 
-void Area::OpenPropertyDialog(MyCanvas *canvas) {
+void Area::OpenPropertyDialog(MainCanvas *canvas) {
     wxDialog dlg(canvas, wxID_ANY, "Area Properties");
     wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
 
@@ -80,7 +80,7 @@ void Area::OpenPropertyDialog(MyCanvas *canvas) {
     }
 }
 
-void Area::OpenAddShapeDialog(MyCanvas* canvas) {
+void Area::OpenAddShapeDialog(MainCanvas* canvas) {
     wxDialog dlg(canvas, wxID_ANY, "Add Shape");
     wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
@@ -88,7 +88,7 @@ void Area::OpenAddShapeDialog(MyCanvas* canvas) {
     wxBoxSizer* midSizer = new wxBoxSizer(wxVERTICAL);
     wxBoxSizer* bottomSizer = new wxBoxSizer(wxHORIZONTAL);
 
-    wxArrayString shapeTypes = { "Area", "OS" };
+    wxArrayString shapeTypes = { "Area", "Node" };
     wxArrayString types = { "Other", "OS", "VM", "Container", "Network" };
 
     wxChoice* shapeTypeCtrl = new wxChoice(&dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, shapeTypes);
@@ -169,19 +169,43 @@ void Area::Draw(wxDC& dc) const {
     int w = (int)(width * s);
     int h = (int)(height * s);
 
-    dc.SetBrush(selected ? wxBrush(*wxBLUE) : wxBrush(wxColour(180, 180, 255)));
-    dc.SetPen(*wxBLACK_PEN);
+    dc.SetBrush(selected ? wxColour(70,130,255) : wxColour(186, 225, 255));
+    dc.SetPen(wxPen(*wxBLACK, std::max(1, (int)(2 * s))));
     dc.DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, (int)(10 * s));
     
     wxFont font((int)(9 * s), wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
     dc.SetFont(font);
-    dc.DrawText(wxString::Format("%s: %s", label, getTypeStr()), screenPos + wxPoint((int)(5 * s), (int)(5 * s)));
+    dc.DrawText(label, screenPos + wxPoint((int)(5 * s), (int)(5 * s) + h));
     dc.SetFont(oldFont);
 
     for (const Port& port : ports) {
         wxPoint p = port.GetScreenPosition(pos, width, height, s, canvas->offset);
         port.Draw(dc, p);
     }
+    
+    // if(selected){
+    //     dc.SetPen(wxPen(*wxBLACK, 1));
+    //     const int hs = 6;
+    //     wxPoint sp(pos.m_x * canvas->scale + canvas->offset.m_x, pos.m_y * canvas->scale + canvas->offset.m_y);
+    //     int w = width * canvas->scale;
+    //     int h = height * canvas->scale;
+
+    //     wxPoint handles[8] = {
+    //         {sp.x, sp.y},                   // TopLeft
+    //         {sp.x + w / 2, sp.y},           // Top
+    //         {sp.x + w, sp.y},               // TopRight
+    //         {sp.x, sp.y + h / 2},           // Left
+    //         {sp.x + w, sp.y + h / 2},       // Right
+    //         {sp.x, sp.y + h},               // BottomLeft
+    //         {sp.x + w / 2, sp.y + h},       // Bottom
+    //         {sp.x + w, sp.y + h}            // BottomRight
+    //     };
+
+    //     for (int i = 0; i < 8; ++i) {
+    //         wxRect handle(handles[i].x - hs / 2, handles[i].y - hs / 2, hs, hs);
+    //         dc.DrawRectangle(handle);
+    //     }
+    // }
 }
 
 
@@ -190,7 +214,7 @@ std::string Area::Serialize() const {
     return nullptr;
 }
 
-Area* Area::Deserialize(const std::string& line, MyCanvas* canvas) {
+Area* Area::Deserialize(const std::string& line, MainCanvas* canvas) {
     // TODO
     return nullptr;
 }

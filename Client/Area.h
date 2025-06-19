@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-class MyCanvas;
+class MainCanvas;
 
 enum class AreaType {
     None = 0,
@@ -32,7 +32,7 @@ public:
      * @param type 시스템 타입
      */
     Area(double x, double y, double w, double h, 
-        MyCanvas* canvas, Shape* parent, const std::string& label,
+        MainCanvas* canvas, Area* parent, const std::string& label,
         const AreaType& Type);
 
     /** @brief 소멸자 */
@@ -51,13 +51,13 @@ public:
      * @brief 속성 편집 다이얼로그 열기 (이름, 포트 수 설정, 자식 추가)
      * @param canvas 부모 윈도우
      */
-    void OpenPropertyDialog(MyCanvas* canvas) override;
+    void OpenPropertyDialog(MainCanvas* canvas) override;
 
     /**
      * @brief 자식 추가 다이얼로그 열기
      * @param canvas 부모 윈도우
      */
-    void OpenAddShapeDialog(MyCanvas* canvas);
+    void OpenAddShapeDialog(MainCanvas* canvas);
 
     /**
      * @brief 포트 수를 설정하고 재배치
@@ -81,7 +81,7 @@ public:
      * @param line 직렬화된 문자열
      * @return Area 객체 포인터
      */
-    static Area* Deserialize(const std::string& line, MyCanvas* canvas);
+    static Area* Deserialize(const std::string& line, MainCanvas* canvas);
 
     void AddSubArea(Area* area);
     void AddNode(Node* node);

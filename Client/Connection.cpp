@@ -8,7 +8,7 @@ void Connection::Draw(wxDC& dc, double scale, const wxPoint2DDouble& offset) con
     wxPoint a = from->GetScreenPosition(fromShape->pos, fromShape->width, fromShape->height, scale, offset);
     wxPoint b = to->GetScreenPosition(toShape->pos, toShape->width, toShape->height, scale, offset);
 
-    dc.SetPen(wxPen(*wxBLACK, (int)(2 * scale))); // 선 두께도 scale 적용 추천!
+    dc.SetPen(wxPen(*wxBLUE, (int)(2 * scale)));
 
     int minimumLineLength = (int)(50 * scale);
     int midY = (a.y > b.y)? b.y - minimumLineLength : a.y - minimumLineLength;

@@ -2,7 +2,7 @@
 #include <wx/wx.h>
 #include <string>
 
-class MyCanvas;
+class MainCanvas;
 
 /**
  * @brief Port 클래스는 도형의 입출력 포트를 나타냅니다.
@@ -10,7 +10,7 @@ class MyCanvas;
  */
 class Port {
 private:
-    MyCanvas* canvas = nullptr;
+    MainCanvas* canvas = nullptr;
 public:
     std::string id;                      ///< 포트 ID (연결 식별용)
     wxPoint2DDouble relativePos;         ///< 도형 내에서의 상대 좌표 (0.0 ~ 1.0)
@@ -21,7 +21,7 @@ public:
      * @param id 포트 고유 ID
      * @param relPos 도형 내부 상대 위치
      */
-    Port(MyCanvas* canvas, const std::string& id, const wxPoint2DDouble& relPos);
+    Port(MainCanvas* canvas, const std::string& id, const wxPoint2DDouble& relPos);
 
     /**
      * @brief 포트의 화면 좌표 계산 및 캐시

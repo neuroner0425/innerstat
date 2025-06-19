@@ -5,7 +5,7 @@
 
 class MainFrame : public wxFrame {
 private:
-    MyCanvas *canvas = nullptr;
+    MainCanvas *canvas = nullptr;
 
 public:
     /**
@@ -23,7 +23,7 @@ public:
         leftSizer->Add(shapeTree, 1, wxEXPAND | wxBOTTOM, 5);
         leftPanel->SetSizer(leftSizer);
 
-        canvas = new MyCanvas(splitter, shapeTree);
+        canvas = new MainCanvas(splitter, shapeTree);
 
         splitter->SetMinimumPaneSize(20);
 

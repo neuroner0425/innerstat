@@ -11,7 +11,7 @@
 #include "Node.h"
 #include "Connection.h"
 
-class MyCanvas : public wxPanel {
+class MainCanvas : public wxPanel {
 public:
     Shape* selectedShape = nullptr;                 // 현재 선택된 도형 인덱스
     wxPoint lastMouse;                         // 마지막 마우스 위치
@@ -19,14 +19,14 @@ public:
     wxPoint2DDouble offset = { 0, 0 };         // 화면 오프셋
     
     /**
-     * @brief MyCanvas 생성자 - 렌더링 및 이벤트 초기 설정
+     * @brief MainCanvas 생성자 - 렌더링 및 이벤트 초기 설정
      */
-    MyCanvas(wxWindow* parent, wxTreeCtrl* shapeTree);
+    MainCanvas(wxWindow* parent, wxTreeCtrl* shapeTree);
 
     /**
-     * @brief MyCanvas 소멸자 - Shape 메모리 정리
+     * @brief MainCanvas 소멸자 - Shape 메모리 정리
      */
-    ~MyCanvas();
+    ~MainCanvas();
 
     /**
      * @brief 새로운 Area 추가
