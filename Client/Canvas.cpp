@@ -4,6 +4,7 @@
 #include <sstream>
 #include <fstream>
 #include <unordered_map>
+#include <cmath>
 
 #include "Canvas.h"
 #include "Shape.h"
@@ -33,23 +34,16 @@ MainCanvas::~MainCanvas() {
 }
 
 void MainCanvas::AddNewArea(const std::string& label, const AreaType areaType) {
-    areas.push_back(new Area(100, 100 + areas.size() * 30, 150, 150, this, nullptr, label, areaType));
-    selectedShape = areas.back();
+    areas.push_back(new Area(120, 120 + areas.size() * 40, 120, 120, this, nullptr, label, areaType));
+    // selectedShape = areas.back();
     RefreshTree();
-    // TODO
     // shapeTree->SetSelection(selectedShape);
     UpdateAllShapesList();
     Refresh();
 }
 
 void MainCanvas::SaveToFile(const std::string& path) {
-    std::ofstream out(path);
-    for (std::vector<Area*>::const_reverse_iterator it = areas.rbegin(); it != areas.rend(); ++it) {
-        out << (*it)->Serialize() << "\n";
-    }
-    for (const Connection& conn : connections) {
-        out << "Connection " << conn.from->id << " " << conn.to->id << "\n";
-    }
+    // TODO
 }
 
 void MainCanvas::LoadFromFile(const std::string& path) {
@@ -71,29 +65,83 @@ void MainCanvas::RefreshTree() {
     shapeTree->ExpandAll();
 }
 
+wxPoint MainCanvas::SnapToGrid(const wxPoint& pt) {
+    int snappedX = (pt.x >= 0)
+        ? ((pt.x + GRID_SIZE / 2) / GRID_SIZE) * GRID_SIZE
+        : ((pt.x - GRID_SIZE / 2) / GRID_SIZE) * GRID_SIZE;
+
+    int snappedY = (pt.y >= 0)
+        ? ((pt.y + GRID_SIZE / 2) / GRID_SIZE) * GRID_SIZE
+        : ((pt.y - GRID_SIZE / 2) / GRID_SIZE) * GRID_SIZE;
+
+    return wxPoint(snappedX, snappedY);
+}
+
 void MainCanvas::OnPaint(wxPaintEvent&) {
     wxAutoBufferedPaintDC dc(this);
     dc.Clear();
+    
+    // 1. 그리드
+    wxSize sz = GetClientSize();
+    dc.SetPen(wxPen(wxColour(230,230,230)));
+    double mid_x = std::fmod(offset.m_x, GRID_SIZE * scale);
+    double mid_y = std::fmod(offset.m_y, GRID_SIZE * scale);
+    dc.DrawLine(mid_x, 0, mid_x, sz.GetHeight());
+    dc.DrawLine(0, mid_y, sz.GetWidth(), mid_y);
+    for (double x = GRID_SIZE * scale; x < sz.GetWidth(); x += GRID_SIZE * scale){
+        dc.DrawLine(mid_x + x, 0, mid_x + x, sz.GetHeight());
+        dc.DrawLine(mid_x - x, 0, mid_x - x, sz.GetHeight());
+    }
+    for (double y = GRID_SIZE * scale; y < sz.GetHeight(); y += GRID_SIZE * scale){
+        dc.DrawLine(0, mid_y + y, sz.GetWidth(), mid_y + y);
+        dc.DrawLine(0, mid_y - y, sz.GetWidth(), mid_y - y);
+    }
+    
+    if (dragging && showPreview && selectedShape) {
+        wxRect rect(selectedShape->position);
+        rect.SetPosition(previewPos);
+        wxPoint screenPos(rect.x * scale + offset.m_x, rect.y * scale + offset.m_y);
+        int w = (int)(rect.width * scale);
+        int h = (int)(rect.height * scale);
 
-    for (Shape* s : allShapes)
+        wxBrush brush(wxColour(150, 200, 255, 90));
+        wxPen pen(wxColour(80,80,200,170), 2, wxPENSTYLE_DOT_DASH);
+        dc.SetBrush(brush);
+        dc.SetPen(pen);
+        dc.DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, (int)(10 * scale));
+    }
+
+    // 도형
+    for (const Shape* s : allShapes)
         s->Draw(dc);
 
+    // 연결선
     for (const Connection& c : connections)
         c.Draw(dc, scale, offset);
 
+    // 연결선 미리보기
     if (isDrawingConnection && pendingPort) {
+        wxRect pendingShapePosition(pendingShape->position);
         wxPoint start = pendingPort->GetScreenPosition(
-            pendingShape->pos, pendingShape->width, pendingShape->height, scale, offset);
+            pendingShapePosition.GetPosition(), pendingShapePosition.width, pendingShapePosition.height, scale, offset);
         wxPoint end = pendingMousePos;
         dc.SetPen(wxPen(*wxBLACK, (int)(2 * scale), wxPENSTYLE_DOT));
         dc.DrawLine(start, end);
     }
     
-    dc.SetBrush(wxBrush(*wxRED));
-    dc.SetPen(*wxBLACK_PEN);
-    dc.DrawCircle(wxPoint((int)offset.m_x, (int)offset.m_y), (int)(scale * 10));
-    dc.DrawText(wxString::Format("Scale: %.2f", scale), wxPoint(0, 0));
-    this->SetFocus();
+    // 디버깅용
+    if(isdebug){    
+        dc.SetBrush(wxBrush(*wxRED));
+        dc.SetPen(*wxBLACK_PEN);
+        dc.DrawCircle(wxPoint((int)offset.m_x, (int)offset.m_y), (int)(scale * 8));
+        dc.DrawText(wxString::Format("Scale: %.2f", scale), wxPoint(0, 0));
+        if(dragging){
+            dc.DrawText(wxString::Format("start_position(%d, %d)", dragStartMousePosition.x, dragStartMousePosition.y), wxPoint(0, 20));
+            dc.DrawText(wxString::Format("current_position(%d, %d)", lastMouse.x, lastMouse.y), wxPoint(0, 40));
+            dc.DrawText(wxString::Format("start_offset(%d, %d)", dragOffset.x, dragOffset.y), wxPoint(0, 60));
+            dc.DrawText(wxString::Format("now_offset(%d, %d)", previewPos.x, previewPos.y), wxPoint(0, 80));
+        }
+    }
 }
 
 
@@ -126,6 +174,7 @@ void MainCanvas::OnMouseWheel(wxMouseEvent& evt) {
 
 void MainCanvas::OnLeftDown(wxMouseEvent& evt) {
     wxPoint mouse = evt.GetPosition();
+    lastMouse = mouse;
 
     if (middleMouseDown) return;
     
@@ -138,7 +187,8 @@ void MainCanvas::OnLeftDown(wxMouseEvent& evt) {
     const Shape* clickedShape = nullptr;
     const Port* clickedPort = nullptr;
 
-    for(std::vector<Area*>::const_reverse_iterator it = areas.rbegin(); it != areas.rend(); ++it) if((clickedPort = (*it)->HitTestPort(mouse, &clickedShape))) break;
+    for(std::vector<Area*>::const_reverse_iterator it = areas.rbegin(); it != areas.rend(); ++it)
+        if((clickedPort = (*it)->HitTestPort(mouse, &clickedShape))) break;
 
     if (clickedPort) {
         pendingPort = clickedPort;
@@ -150,12 +200,12 @@ void MainCanvas::OnLeftDown(wxMouseEvent& evt) {
     }
 
     // 마우스 좌표 저장 및 초기화
-    lastMouse = mouse;
     dragging = resizing = false;
     activeHandle = HandleType::None;
 
     // 3. 도형 핸들 클릭 검사 (크기 조절 여부 판단)
-    for(std::vector<Area*>::const_reverse_iterator it = areas.rbegin(); it != areas.rend(); ++it) if((*it)->HitTestShape(mouse)) return;
+    for(std::vector<Area*>::const_reverse_iterator it = areas.rbegin(); it != areas.rend(); ++it)
+        if((*it)->HitTestShape(mouse)) return;
 
     // 5. 아무 도형도 클릭하지 않음 → 패닝 모드
     UnSelectShape();
@@ -168,6 +218,7 @@ void MainCanvas::OnLeftDown(wxMouseEvent& evt) {
 }
 
 void MainCanvas::OnLeftUp(wxMouseEvent& evt) {
+    if (HasCapture()) ReleaseMouse();
     if (isDrawingConnection) {
         wxPoint mouse = evt.GetPosition();
         const Shape* hoveredShape = nullptr;
@@ -182,14 +233,20 @@ void MainCanvas::OnLeftUp(wxMouseEvent& evt) {
         isDrawingConnection = false;
         pendingPort = nullptr;
         pendingShape = nullptr;
-        ReleaseMouse();
         Refresh();
         return;
     }
 
-    if (dragging || resizing) {
-        dragging = resizing = false;
-        ReleaseMouse();
+    if (dragging) {
+        selectedShape->SetPosition(previewPos);
+        dragging = false;
+        showPreview = false;
+        Refresh();
+        return;
+    }
+
+    if (resizing) {
+        resizing = false;
         Refresh();
     }
 }
@@ -217,8 +274,16 @@ void MainCanvas::OnMotion(wxMouseEvent& evt) {
     
     // 1. 도형 이동 처리
     if (dragging && selectedShape != nullptr) {
-        selectedShape->pos.m_x += delta.x / scale;
-        selectedShape->pos.m_y += delta.y / scale;
+        wxPoint shapePos = (now - dragStartMousePosition);
+        shapePos.x /= scale;
+        shapePos.y /= scale;
+        shapePos += dragOffset;
+        selectedShape->SetPosition(shapePos);
+        // selectedShape->position.x += delta.x / scale;
+        // selectedShape->position.y += delta.y / scale;
+
+        previewPos = SnapToGrid(shapePos);
+        showPreview = true;
     }
 
     // 2. 도형 크기 조절 처리
@@ -227,20 +292,20 @@ void MainCanvas::OnMotion(wxMouseEvent& evt) {
         double dx = delta.x / scale, dy = delta.y / scale;
 
         switch (activeHandle) {
-            case HandleType::Right:        s->width += dx; break;
-            case HandleType::Bottom:       s->height += dy; break;
-            case HandleType::BottomRight:  s->width += dx; s->height += dy; break;
-            case HandleType::Left:         s->pos.m_x += dx; s->width -= dx; break;
-            case HandleType::Top:          s->pos.m_y += dy; s->height -= dy; break;
-            case HandleType::TopLeft:      s->pos.m_x += dx; s->width -= dx; s->pos.m_y += dy; s->height -= dy; break;
-            case HandleType::TopRight:     s->pos.m_y += dy; s->height -= dy; s->width += dx; break;
-            case HandleType::BottomLeft:   s->pos.m_x += dx; s->width -= dx; s->height += dy; break;
+            case HandleType::Right:        s->position.width += dx; break;
+            case HandleType::Bottom:       s->position.height += dy; break;
+            case HandleType::BottomRight:  s->position.width += dx; s->position.height += dy; break;
+            case HandleType::Left:         s->position.x += dx; s->position.width -= dx; break;
+            case HandleType::Top:          s->position.y += dy; s->position.height -= dy; break;
+            case HandleType::TopLeft:      s->position.x += dx; s->position.width -= dx; s->position.y += dy; s->position.height -= dy; break;
+            case HandleType::TopRight:     s->position.y += dy; s->position.height -= dy; s->position.width += dx; break;
+            case HandleType::BottomLeft:   s->position.x += dx; s->position.width -= dx; s->position.height += dy; break;
             default: break;
         }
 
         // 최소 크기 보장
-        if (s->width < 30) s->width = 30;
-        if (s->height < 20) s->height = 20;
+        if (s->position.width < 30) s->position.width = 30;
+        if (s->position.height < 20) s->position.height = 20;
     }
 
     Refresh();
@@ -263,11 +328,15 @@ void MainCanvas::ResizingShape(Shape* shape, HandleType& handleType){
     Refresh();
 }
 
-void MainCanvas::DraggingShape(Shape* shape){
+void MainCanvas::DraggingShape(Shape* shape, wxPoint& pt){
+    dragStartMousePosition = pt;
+    dragOffset = shape->GetPosition();
     SelectShape(shape);
     dragging = true;
     // TODO
     // shapeTree->SetSelection(i);
+    showPreview = true;
+    previewPos = SnapToGrid(dragOffset);
     CaptureMouse();
     Refresh();
 }
@@ -383,4 +452,17 @@ void MainCanvas::StopPanning(){
     panning = false;
     SetCursor(wxCursor(*wxSTANDARD_CURSOR));
     if (HasCapture()) ReleaseMouse();
+}
+
+void MainCanvas::SelectShape(Shape* shape){
+    UnSelectShape();
+    selectedShape = shape;
+    selectedShape->selected = true;
+    for (const auto& [itemId, mappedShape] : shapeMap) {
+        if (mappedShape == shape) {
+            shapeTree->SelectItem(itemId);  // Tree에서 선택 처리
+            break;
+        }
+    }
+    Refresh();
 }

@@ -11,8 +11,11 @@
 #include "Node.h"
 #include "Connection.h"
 
+constexpr int GRID_SIZE = 40;
+
 class MainCanvas : public wxPanel {
 public:
+    bool isdebug = true;
     Shape* selectedShape = nullptr;                 // 현재 선택된 도형 인덱스
     wxPoint lastMouse;                         // 마지막 마우스 위치
     double scale = 1.0;                        // 캔버스 확대/축소 배율
@@ -37,25 +40,12 @@ public:
     /**
      * @brief Shape의 포인터로 선택
      * @param shape 선택할 Shape의 포인터
-     * @param isSelect 선택으로 할건지 선택 해제로 할것인지
      */
-    inline void SelectShape(Shape* shape){
-        if (selectedShape != nullptr) selectedShape->selected = false;
-        selectedShape = shape;
-        selectedShape->selected = true;
-
-        for (const auto& [itemId, mappedShape] : shapeMap) {
-            if (mappedShape == shape) {
-                shapeTree->SelectItem(itemId);  // Tree에서 선택 처리
-                break;
-            }
-        }
-
-        Refresh();
-    }
+    void SelectShape(Shape* shape);
     
     inline void UnSelectShape(){
         if (selectedShape != nullptr) selectedShape->selected = false;
+        selectedShape = nullptr;
     }
 
     /**
@@ -83,7 +73,7 @@ public:
     /**
      * 
      */
-    void DraggingShape(Shape* shape);
+    void DraggingShape(Shape* shape, wxPoint& pt);
 
     /**
      * 
@@ -97,6 +87,8 @@ public:
     void OnTreeLeftDClick(wxTreeItemId itemId);  // 선택 연동
 
     void UpdateAllShapesList();
+    
+    static wxPoint SnapToGrid(const wxPoint& pt);
 
 private:
     std::vector<Area*> areas;                // 도형 목록
@@ -115,6 +107,13 @@ private:
     bool resizing = false;
     bool panning = false;
     HandleType activeHandle = HandleType::None;
+    
+    wxPoint dragOffset;        // 마우스-도형 좌상단 거리
+    wxPoint dragStartMousePosition;
+
+    // 미리보기 상태
+    bool showPreview = false;
+    wxPoint previewPos;        // 미리보기 위치(스냅 적용된)
 
     const Port* pendingPort = nullptr;         // 현재 연결 대기 중인 포트
     const Shape* pendingShape = nullptr;       // 연결 시작 도형

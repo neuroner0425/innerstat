@@ -25,7 +25,7 @@ public:
      * @param h 높이
      * @param pid PID 문자열
      */
-    Node(double x, double y, double w, double h,
+    Node(int x, int y, int w, int h,
         MainCanvas* canvas, Area* parent, const std::string& label);
 
     /**

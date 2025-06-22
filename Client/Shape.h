@@ -9,7 +9,7 @@ class Area;
  * @brief 도형의 크기 조절을 위한 핸들 타입 정의
  */
 enum class HandleType {
-    None = -1,
+    None = 0,
     TopLeft, Top, TopRight,
     Left, Right,
     BottomLeft, Bottom, BottomRight
@@ -29,9 +29,7 @@ public:
  */
 class Shape {
 public:
-    wxPoint2DDouble pos;   // 도형의 좌상단 좌표
-    double width;          // 도형 너비
-    double height;         // 도형 높이
+    wxRect position;
     MainCanvas* canvas = nullptr;
     Area* parent = nullptr;
     std::string label;
@@ -46,16 +44,13 @@ public:
      * @param w 도형 너비
      * @param h 도형 높이
      */
-    Shape(double x, double y, double w, double h, MainCanvas* canvas, Area* parent, const std::string& label);
+    Shape(int x, int y, int w, int h, MainCanvas* canvas, Area* parent, const std::string& label);
 
     virtual ~Shape() = default;
 
     /**
      * @brief 도형을 화면에 그리는 순수 가상 함수
      * @param dc 그리기 대상 DC
-     * @param scale 확대/축소 비율
-     * @param offset 화면 오프셋
-     * @param selected 선택 여부
      */
     virtual void Draw(wxDC& dc) const = 0;
 
@@ -68,8 +63,6 @@ public:
     /**
      * @brief 주어진 화면 좌표가 도형 내부인지 검사
      * @param screenPt 마우스 위치 (스크린 좌표)
-     * @param scale 현재 확대 배율
-     * @param offset 캔버스 오프셋
      * @return true이면 도형 내부
      */
     virtual bool Contains(const wxPoint& screenPt) const;
@@ -101,4 +94,24 @@ public:
     virtual bool HitTestShape(wxPoint& mouse);
 
     virtual bool OpenProperty(wxPoint& pos);
+
+    
+    inline void SetPosition(const wxPoint& pos) {
+        position.SetPosition(pos);
+    }
+
+    // 도형의 위치를 반환하는 함수
+    inline wxPoint GetPosition() const {
+        return position.GetPosition();
+    }
+
+    // 도형의 크기를 설정하는 함수
+    inline void SetSize(const wxSize& size) {
+        position.SetSize(size);
+    }
+
+    // 도형의 크기를 반환하는 함수
+    inline wxSize GetSize() const {
+        return position.GetSize();
+    }
 };

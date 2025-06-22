@@ -6,7 +6,7 @@
 #include <wx/spinctrl.h>
 #include <sstream>
 
-Node::Node(double x, double y, double w, double h, 
+Node::Node(int x, int y, int w, int h, 
     MainCanvas* c, Area* p, const std::string& l)
     : Shape(x, y, w, h, c, p, l), active(true), overloaded(false){
     SetPortCount(1);
@@ -24,9 +24,10 @@ void Node::SetPortCount(int count) {
 void Node::Draw(wxDC &dc) const {
     wxFont oldFont = dc.GetFont();
     double s = canvas->scale;
-    wxPoint screenPos((int)(pos.m_x * s + canvas->offset.m_x), (int)(pos.m_y * s + canvas->offset.m_y));
-    int w = (int)(width * s);
-    int h = (int)(height * s);
+
+    wxPoint screenPos(position.x * canvas->scale + canvas->offset.m_x, position.y * canvas->scale + canvas->offset.m_y);
+    int w = (int)(position.width * s);
+    int h = (int)(position.height * s);
 
     wxColour fill = overloaded ? wxColour(255, 100, 100)
                   : (active ? wxColour(180, 255, 180) : wxColour(200, 200, 200));
@@ -41,7 +42,7 @@ void Node::Draw(wxDC &dc) const {
     dc.SetFont(oldFont);
 
     for (const auto& port : ports) {
-        wxPoint p = port.GetScreenPosition(pos, width, height, s, canvas->offset);
+        wxPoint p = port.GetScreenPosition(position.GetPosition(), position.width, position.height, s, canvas->offset);
         port.Draw(dc, p);
     }
     

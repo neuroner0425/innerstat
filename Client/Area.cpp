@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <string>
 
-Area::Area(double x, double y, double w, double h, 
+Area::Area(int x, int y, int w, int h, 
     MainCanvas* c, Area* p, const std::string& l,
     const AreaType& t)
     : Shape(x, y, w, h, c, p, l), type(t) {
@@ -143,18 +143,18 @@ void Area::OpenAddShapeDialog(MainCanvas* canvas) {
         std::string label = labelCtrl->GetValue().ToStdString();
 
         if (shapeTypeCtrl->GetSelection() == 0) {
-            double offsetX = this->pos.m_x + 30 + this->GetSubAreas().size() * 20;
-            double offsetY = this->pos.m_y + 40;
+            int offsetX = position.x + 40 + this->GetSubAreas().size() * 40;
+            int offsetY = position.y + 40;
 
             AreaType areaType = getTypeByInt(typeCtrl->GetSelection());
 
-            Area* newArea = new Area(offsetX, offsetY, 150, 80, canvas, this, label, areaType);
+            Area* newArea = new Area(offsetX, offsetY, 120, 120, canvas, this, label, areaType);
             this->AddSubArea(newArea);
         } else {
-            double offsetX = this->pos.m_x + 30 + this->GetNodes().size() * 20;
-            double offsetY = this->pos.m_y + 100;
+            int offsetX = position.x + 40 + this->GetNodes().size() * 40;
+            int offsetY = position.y + 100;
 
-            Node* newNode = new Node(offsetX, offsetY, 150, 80, canvas, this, label);
+            Node* newNode = new Node(offsetX, offsetY, 120, 120, canvas, this, label);
             this->AddNode(newNode);
         }
     }
@@ -165,9 +165,9 @@ void Area::Draw(wxDC& dc) const {
     wxFont oldFont = dc.GetFont();
     double s = canvas->scale;
 
-    wxPoint screenPos((int)(pos.m_x * s + canvas->offset.m_x), (int)(pos.m_y * s + canvas->offset.m_y));
-    int w = (int)(width * s);
-    int h = (int)(height * s);
+    wxPoint screenPos(position.x * canvas->scale + canvas->offset.m_x, position.y * canvas->scale + canvas->offset.m_y);
+    int w = (int)(position.width * s);
+    int h = (int)(position.height * s);
 
     dc.SetBrush(selected ? wxColour(70,130,255) : wxColour(186, 225, 255));
     dc.SetPen(wxPen(*wxBLACK, std::max(1, (int)(2 * s))));
@@ -179,7 +179,7 @@ void Area::Draw(wxDC& dc) const {
     dc.SetFont(oldFont);
 
     for (const Port& port : ports) {
-        wxPoint p = port.GetScreenPosition(pos, width, height, s, canvas->offset);
+        wxPoint p = port.GetScreenPosition(position.GetPosition(), position.width, position.height, s, canvas->offset);
         port.Draw(dc, p);
     }
     

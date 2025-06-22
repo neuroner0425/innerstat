@@ -31,7 +31,7 @@ public:
      * @param h 높이
      * @param type 시스템 타입
      */
-    Area(double x, double y, double w, double h, 
+    Area(int x, int y, int w, int h, 
         MainCanvas* canvas, Area* parent, const std::string& label,
         const AreaType& Type);
 

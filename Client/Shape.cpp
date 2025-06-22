@@ -2,32 +2,39 @@
 #include "Area.h"
 #include "Canvas.h"
 
-Shape::Shape(double x, double y, double w, double h, MainCanvas* c, Area* p, const std::string& l)
-    : pos(x, y), width(w), height(h), canvas(c), parent(p), label(l) { }
+Shape::Shape(int x, int y, int w, int h, MainCanvas* c, Area* p, const std::string& l)
+    : position(wxPoint(x,y), wxSize(w, h)), canvas(c), parent(p), label(l) { }
 
 bool Shape::Contains(const wxPoint& screenPt) const {
-    wxPoint sp(pos.m_x * canvas->scale + canvas->offset.m_x, pos.m_y * canvas->scale + canvas->offset.m_y);
-    int w = width * canvas->scale;
-    int h = height * canvas->scale;
-    return wxRect(sp.x, sp.y, w, h).Contains(screenPt);
+    wxRect scaledRect(
+        position.x * canvas->scale + canvas->offset.m_x,
+        position.y * canvas->scale + canvas->offset.m_y,
+        position.width * canvas->scale,
+        position.height * canvas->scale
+    );
+    return scaledRect.Contains(screenPt);
 }
 
 HandleType Shape::HitTestHandle(const wxPoint& mouse) const {
     const int hs = 6; // 핸들 크기 (6x6)
 
-    wxPoint sp(pos.m_x * canvas->scale + canvas->offset.m_x, pos.m_y * canvas->scale + canvas->offset.m_y);
-    int w = width * canvas->scale;
-    int h = height * canvas->scale;
+    // 스케일 및 오프셋을 적용한 사각형
+    wxRect scaledRect(
+        position.x * canvas->scale + canvas->offset.m_x,
+        position.y * canvas->scale + canvas->offset.m_y,
+        position.width * canvas->scale,
+        position.height * canvas->scale
+    );
 
     wxPoint handles[8] = {
-        {sp.x, sp.y},                   // TopLeft
-        {sp.x + w / 2, sp.y},           // Top
-        {sp.x + w, sp.y},               // TopRight
-        {sp.x, sp.y + h / 2},           // Left
-        {sp.x + w, sp.y + h / 2},       // Right
-        {sp.x, sp.y + h},               // BottomLeft
-        {sp.x + w / 2, sp.y + h},       // Bottom
-        {sp.x + w, sp.y + h}            // BottomRight
+        scaledRect.GetTopLeft(),                                     // TopLeft
+        wxPoint(scaledRect.GetLeft() + scaledRect.GetWidth() / 2, scaledRect.GetTop()),      // Top
+        scaledRect.GetTopRight(),                                    // TopRight
+        wxPoint(scaledRect.GetLeft(), scaledRect.GetTop() + scaledRect.GetHeight() / 2),     // Left
+        wxPoint(scaledRect.GetRight(), scaledRect.GetTop() + scaledRect.GetHeight() / 2),    // Right
+        scaledRect.GetBottomLeft(),                                  // BottomLeft
+        wxPoint(scaledRect.GetLeft() + scaledRect.GetWidth() / 2, scaledRect.GetBottom()),   // Bottom
+        scaledRect.GetBottomRight()                                  // BottomRight
     };
 
     for (int i = 0; i < 8; ++i) {
@@ -40,10 +47,11 @@ HandleType Shape::HitTestHandle(const wxPoint& mouse) const {
 }
 
 
+
 const Port* Shape::HitTestPort(const wxPoint& pos, const Shape** outShape) const{
     const std::vector<Port>& ports = this->GetPorts();
     for (const Port& port : ports) {
-        wxPoint screenPos = port.GetScreenPosition(this->pos, this->width, this->height, canvas->scale, canvas->offset);
+        wxPoint screenPos = port.GetScreenPosition(position.GetPosition(), position.width, position.height, canvas->scale, canvas->offset);
         wxRect hitbox(screenPos.x - 6, screenPos.y - 6, 12, 12);
         if (hitbox.Contains(pos)) {
             if (outShape) *outShape = this;
@@ -61,7 +69,7 @@ bool Shape::HitTestShape(wxPoint& mouse){
     // }
 
     if (Contains(mouse)) {
-        canvas->DraggingShape(this);
+        canvas->DraggingShape(this, mouse);
         return true;
     }
     return false;
