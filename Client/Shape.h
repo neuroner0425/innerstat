@@ -1,32 +1,11 @@
 #pragma once
 #include <wx/wx.h>
 #include "Port.h"
+#include "ShapeHandle.h"
 
 class MainCanvas;
 class Area;
 
-/**
- * @brief 도형의 크기 조절을 위한 핸들 타입 정의
- */
-enum class HandleType {
-    None = 0,
-    TopLeft, Top, TopRight,
-    Left, Right,
-    BottomLeft, Bottom, BottomRight
-};
-
-class Padding {
-public:
-    Padding(wxDouble size = 40){
-        left = right = top = bottom = size / 2;
-    };
-    wxDouble left, right, top, bottom;
-};
-
-/**
- * @brief Area/Node의 공통 기반 클래스
- *        위치, 크기, 포트 정보와 도형 인터페이스를 정의
- */
 class Shape {
 public:
     wxRect position;
@@ -34,84 +13,44 @@ public:
     Area* parent = nullptr;
     std::string label;
     
-    bool selected = false;
-    Padding padding;
+    bool isSelected = false;
     
-    /**
-     * @brief 생성자
-     * @param x 도형 좌상단 X 좌표
-     * @param y 도형 좌상단 Y 좌표
-     * @param w 도형 너비
-     * @param h 도형 높이
-     */
+    /** @brief 생성자 */
     Shape(int x, int y, int w, int h, MainCanvas* canvas, Area* parent, const std::string& label);
 
+    /** @brief 소멸자 */
     virtual ~Shape() = default;
 
-    /**
-     * @brief 도형을 화면에 그리는 순수 가상 함수
-     * @param dc 그리기 대상 DC
-     */
+    /** @brief 도형을 화면에 그리는 순수 가상 함수 */
     virtual void Draw(wxDC& dc) const = 0;
 
-    /**
-     * @brief 속성 다이얼로그를 여는 가상 함수
-     *        (Area/Node에서 오버라이드됨)
-     */
-    virtual void OpenPropertyDialog(MainCanvas* canvas) { }
+    /** @brief 속성 다이얼로그를 여는 가상 함수 */
+    virtual void OpenPropertyDialog() { }
 
-    /**
-     * @brief 주어진 화면 좌표가 도형 내부인지 검사
-     * @param screenPt 마우스 위치 (스크린 좌표)
-     * @return true이면 도형 내부
-     */
+    /** @brief 주어진 화면 좌표가 도형 내부인지 검사 */
     virtual bool Contains(const wxPoint& screenPt) const;
 
-    /**
-     * @brief 도형을 직렬화하여 저장 가능한 문자열로 반환
-     */
+    /** @brief 도형을 직렬화하여 저장 가능한 문자열로 반환 */
     virtual std::string Serialize() const = 0;
 
-    /**
-     * @brief 마우스 클릭 위치가 어떤 크기 조절 핸들에 속하는지 검사
-     * @param screenPt 마우스 위치
-     * @param scale 배율
-     * @param offset 오프셋
-     * @return 핸들 타입 (없으면 HandleType::None)
-     */
-    HandleType HitTestHandle(const wxPoint& screenPt) const;
+    /** @brief 도형이 보유한 포트 목록을 반환 (기본은 빈 목록) */
+    virtual const std::vector<Port>& GetPorts() const { return {}; }
 
-    /**
-     * @brief 도형이 보유한 포트 목록을 반환 (기본은 빈 목록)
-     */
-    virtual const std::vector<Port>& GetPorts() const {
-        static std::vector<Port> empty;
-        return empty;
-    }
-
+    /** @brief 주어진 좌표가 선택하고 있는 포트를 반환 */
     virtual const Port* HitTestPort(const wxPoint& pos, const Shape** outShape) const;
 
-    virtual bool HitTestShape(wxPoint& mouse);
+    /** @brief 주어진 좌표가 선택하고 있는 도형과 위치를 반환 */
+    virtual ShapeHandle HitTestShape(wxPoint& mouse);
 
-    virtual bool OpenProperty(wxPoint& pos);
+    /** @brief 도형의 위치를 설정 */
+    inline void SetPosition(const wxPoint& pos) { position.SetPosition(pos); }
 
-    
-    inline void SetPosition(const wxPoint& pos) {
-        position.SetPosition(pos);
-    }
+    /** @brief 도형의 위치를 반환 */
+    inline wxPoint GetPosition() const { return position.GetPosition(); }
 
-    // 도형의 위치를 반환하는 함수
-    inline wxPoint GetPosition() const {
-        return position.GetPosition();
-    }
+    /** @brief 도형의 크기를 설정 */
+    inline void SetSize(const wxSize& size) { position.SetSize(size); }
 
-    // 도형의 크기를 설정하는 함수
-    inline void SetSize(const wxSize& size) {
-        position.SetSize(size);
-    }
-
-    // 도형의 크기를 반환하는 함수
-    inline wxSize GetSize() const {
-        return position.GetSize();
-    }
+    /** @brief 도형의 크기를 반환 */
+    inline wxSize GetSize() const { return position.GetSize(); }
 };

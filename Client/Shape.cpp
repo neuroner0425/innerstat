@@ -7,46 +7,13 @@ Shape::Shape(int x, int y, int w, int h, MainCanvas* c, Area* p, const std::stri
 
 bool Shape::Contains(const wxPoint& screenPt) const {
     wxRect scaledRect(
-        position.x * canvas->scale + canvas->offset.m_x,
-        position.y * canvas->scale + canvas->offset.m_y,
+        position.x * canvas->scale + canvas->offset.x,
+        position.y * canvas->scale + canvas->offset.y,
         position.width * canvas->scale,
         position.height * canvas->scale
     );
     return scaledRect.Contains(screenPt);
 }
-
-HandleType Shape::HitTestHandle(const wxPoint& mouse) const {
-    const int hs = 6; // 핸들 크기 (6x6)
-
-    // 스케일 및 오프셋을 적용한 사각형
-    wxRect scaledRect(
-        position.x * canvas->scale + canvas->offset.m_x,
-        position.y * canvas->scale + canvas->offset.m_y,
-        position.width * canvas->scale,
-        position.height * canvas->scale
-    );
-
-    wxPoint handles[8] = {
-        scaledRect.GetTopLeft(),                                     // TopLeft
-        wxPoint(scaledRect.GetLeft() + scaledRect.GetWidth() / 2, scaledRect.GetTop()),      // Top
-        scaledRect.GetTopRight(),                                    // TopRight
-        wxPoint(scaledRect.GetLeft(), scaledRect.GetTop() + scaledRect.GetHeight() / 2),     // Left
-        wxPoint(scaledRect.GetRight(), scaledRect.GetTop() + scaledRect.GetHeight() / 2),    // Right
-        scaledRect.GetBottomLeft(),                                  // BottomLeft
-        wxPoint(scaledRect.GetLeft() + scaledRect.GetWidth() / 2, scaledRect.GetBottom()),   // Bottom
-        scaledRect.GetBottomRight()                                  // BottomRight
-    };
-
-    for (int i = 0; i < 8; ++i) {
-        wxRect handle(handles[i].x - hs / 2, handles[i].y - hs / 2, hs, hs);
-        if (handle.Contains(mouse))
-            return static_cast<HandleType>(i);
-    }
-
-    return HandleType::None;
-}
-
-
 
 const Port* Shape::HitTestPort(const wxPoint& pos, const Shape** outShape) const{
     const std::vector<Port>& ports = this->GetPorts();
@@ -61,26 +28,36 @@ const Port* Shape::HitTestPort(const wxPoint& pos, const Shape** outShape) const
     return nullptr;
 }
 
-bool Shape::HitTestShape(wxPoint& mouse){
-    HandleType activeHandle = this->HitTestHandle(mouse);
-    // if (activeHandle != HandleType::None) {
-    //     canvas->ResizingShape(this, activeHandle);
-    //     return true;
-    // }
+ShapeHandle Shape::HitTestShape(wxPoint& mouse){
+    const int hs = 6; // 핸들 크기 (6x6)
 
-    if (Contains(mouse)) {
-        canvas->DraggingShape(this, mouse);
-        return true;
-    }
-    return false;
-}
+    // 스케일 및 오프셋을 적용한 사각형
+    wxRect scaledRect(
+        position.x * canvas->scale + canvas->offset.x,
+        position.y * canvas->scale + canvas->offset.y,
+        position.width * canvas->scale,
+        position.height * canvas->scale
+    );
 
-bool Shape::OpenProperty(wxPoint& pos){
-    if (Contains(pos)) {
-        OpenPropertyDialog(canvas);
-        canvas->UpdateAllShapesList();
-        canvas->Refresh();
-        return true;
+    wxPoint handles[8] = {
+        scaledRect.GetTopLeft(),                                                            // TopLeft
+        wxPoint(scaledRect.GetLeft() + scaledRect.GetWidth() / 2, scaledRect.GetTop()),     // Top
+        scaledRect.GetTopRight(),                                                           // TopRight
+        wxPoint(scaledRect.GetLeft(), scaledRect.GetTop() + scaledRect.GetHeight() / 2),    // Left
+        wxPoint(scaledRect.GetRight(), scaledRect.GetTop() + scaledRect.GetHeight() / 2),   // Right
+        scaledRect.GetBottomLeft(),                                                         // BottomLeft
+        wxPoint(scaledRect.GetLeft() + scaledRect.GetWidth() / 2, scaledRect.GetBottom()),  // Bottom
+        scaledRect.GetBottomRight()                                                         // BottomRight
+    };
+
+    for (int i = 0; i < 8; ++i) {
+        wxRect handle(handles[i].x - hs / 2, handles[i].y - hs / 2, hs, hs);
+        if (handle.Contains(mouse))
+            return ShapeHandle(this, static_cast<HandleType>(i));
     }
-    return false;
+
+    if (scaledRect.Contains(mouse))
+        return ShapeHandle(this, HandleType::Body);
+
+    return ShapeHandle(nullptr, HandleType::None);
 }

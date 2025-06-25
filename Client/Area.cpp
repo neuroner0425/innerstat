@@ -2,6 +2,8 @@
 #include "Node.h"
 #include "Canvas.h"
 #include "Port.h"
+#include "DialogManager.h"
+
 #include <wx/textdlg.h>
 #include <wx/textctrl.h>
 #include <wx/spinctrl.h>
@@ -19,15 +21,15 @@ Area::Area(int x, int y, int w, int h,
 }
 
 Area::~Area(){
-    for(Area* area : subAreas){
+    for(Area* area : childAreas){
         delete area;
     }
-    subAreas.clear();
+    childAreas.clear();
 
-    for(Node* node : nodes){
+    for(Node* node : childNodes){
         delete node;
     }
-    nodes.clear();
+    childNodes.clear();
 }
 
 void Area::SetPortCount(int count) {
@@ -39,124 +41,36 @@ void Area::SetPortCount(int count) {
     }
 }
 
+void Area::OpenPropertyDialog() {
+    AreaProperties* ret = ShowAreaPropertyDialog(canvas, this);
 
-void Area::OpenPropertyDialog(MainCanvas *canvas) {
-    wxDialog dlg(canvas, wxID_ANY, "Area Properties");
-    wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
+    if(ret == nullptr) return;
 
-    wxArrayString types = { "Other", "OS", "VM", "Container", "Network" };
+    this->label = ret->label;
+    type = ret->areaType;
+    SetPortCount(ret->portCount);
+    delete ret;
 
-    wxTextCtrl *labelctrl = new wxTextCtrl(&dlg, wxID_ANY, wxString(label), wxDefaultPosition, wxDefaultSize);
-    wxChoice *typeCtrl = new wxChoice(&dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, types);
-    wxSpinCtrl *portCount = new wxSpinCtrl(&dlg, wxID_ANY);
-    wxButton *addShapeBtn = new wxButton(&dlg, wxID_ANY, "Add Shape");
-
-    typeCtrl->SetSelection(getTypeInt());
-    portCount->SetRange(0, 10);
-    portCount->SetValue(ports.size());
-
-    sizer->Add(new wxStaticText(&dlg, wxID_ANY, "Label:"), 0, wxALL, 5);
-    sizer->Add(labelctrl, 0, wxEXPAND | wxALL, 5);
-    sizer->Add(new wxStaticText(&dlg, wxID_ANY, "Type:"), 0, wxALL, 5);
-    sizer->Add(typeCtrl, 0, wxEXPAND | wxALL, 5);
-    sizer->Add(new wxStaticText(&dlg, wxID_ANY, "Port Count:"), 0, wxALL, 5);
-    sizer->Add(portCount, 0, wxEXPAND | wxALL, 5);
-    sizer->Add(addShapeBtn, 0, wxEXPAND | wxALL, 5);
-    sizer->Add(new wxButton(&dlg, wxID_OK), 0, wxALIGN_CENTER | wxALL, 10);
-
-    dlg.SetSizerAndFit(sizer);
-    dlg.SetSize(wxSize(200, -1));
-
-    addShapeBtn->Bind(wxEVT_BUTTON,[=](wxCommandEvent &evt){
-        this->OpenAddShapeDialog(canvas);
-    });
-
-    if (dlg.ShowModal() == wxID_OK) {
-        this->label = labelctrl->GetValue().ToStdString();
-        type = getTypeByInt(typeCtrl->GetSelection());
-        SetPortCount(portCount->GetValue());
-        canvas->RefreshTree();
-        canvas->Refresh();
-    }
+    canvas->RefreshTree();
+    canvas->Refresh();
 }
 
-void Area::OpenAddShapeDialog(MainCanvas* canvas) {
-    wxDialog dlg(canvas, wxID_ANY, "Add Shape");
-    wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
+void Area::OpenAddShapeDialog() {
+    ShapeProperties* ret = ShowAddShapeDialog(canvas);
 
-    wxBoxSizer* topSizer = new wxBoxSizer(wxHORIZONTAL);
-    wxBoxSizer* midSizer = new wxBoxSizer(wxVERTICAL);
-    wxBoxSizer* bottomSizer = new wxBoxSizer(wxHORIZONTAL);
+    if(ret == nullptr) return;
 
-    wxArrayString shapeTypes = { "Area", "Node" };
-    wxArrayString types = { "Other", "OS", "VM", "Container", "Network" };
-
-    wxChoice* shapeTypeCtrl = new wxChoice(&dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, shapeTypes);
-    shapeTypeCtrl->SetSelection(0);
-
-    wxTextCtrl* labelCtrl = nullptr;
-    wxChoice* typeCtrl = nullptr;
-
-    topSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Shape Type:"), 0, wxALL | wxALIGN_CENTER_VERTICAL, 5);
-    topSizer->Add(shapeTypeCtrl, 0, wxALL, 10);
-
-    bottomSizer->Add(new wxButton(&dlg, wxID_OK), 0, wxALL, 10);
-    bottomSizer->Add(new wxButton(&dlg, wxID_CANCEL), 0, wxALL, 10);
-
-    sizer->Add(topSizer, 0, wxEXPAND);
-    sizer->Add(midSizer, 1, wxEXPAND | wxALL, 10);
-    sizer->Add(bottomSizer, 0, wxALIGN_CENTER);
-
-    dlg.SetSizerAndFit(sizer);
-    dlg.SetSize(wxSize(200, -1));
-
-    auto updateMidSizer = [&]() {
-        midSizer->Clear(true);
-
-        midSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Label:"), 0, wxALL, 5);
-        labelCtrl = new wxTextCtrl(&dlg, wxID_ANY, wxString("New Node"));
-        
-        midSizer->Add(labelCtrl, 0, wxEXPAND | wxALL, 5);
-
-        if (shapeTypeCtrl->GetSelection() == 0) {
-            labelCtrl->SetValue(wxString("New Area"));
-            midSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Type:"), 0, wxALL, 5);
-            typeCtrl = new wxChoice(&dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, types);
-            typeCtrl->SetSelection(0);
-            midSizer->Add(typeCtrl, 0, wxEXPAND | wxALL, 5);
-        } else {
-            typeCtrl = nullptr;
-        }
-
-        dlg.Layout();
-        dlg.Fit();
-    };
-
-    updateMidSizer();
-
-    shapeTypeCtrl->Bind(wxEVT_CHOICE, [&](wxCommandEvent&) {
-        updateMidSizer();
-    });
-
-    int status = dlg.ShowModal();
-    if (status == wxID_OK) {
-        std::string label = labelCtrl->GetValue().ToStdString();
-
-        if (shapeTypeCtrl->GetSelection() == 0) {
-            int offsetX = position.x + 40 + this->GetSubAreas().size() * 40;
+    AreaProperties* areaCast = dynamic_cast<AreaProperties*>(ret);
+    if(areaCast){
+            int offsetX = position.x + 40 + childAreas.size() * 40;
             int offsetY = position.y + 40;
-
-            AreaType areaType = getTypeByInt(typeCtrl->GetSelection());
-
-            Area* newArea = new Area(offsetX, offsetY, 120, 120, canvas, this, label, areaType);
+            Area* newArea = new Area(offsetX, offsetY, 120, 120, canvas, this, areaCast->label, areaCast->areaType);
             this->AddSubArea(newArea);
-        } else {
-            int offsetX = position.x + 40 + this->GetNodes().size() * 40;
+    }else{
+            int offsetX = position.x + 40 + childNodes.size() * 40;
             int offsetY = position.y + 100;
-
-            Node* newNode = new Node(offsetX, offsetY, 120, 120, canvas, this, label);
+            Node* newNode = new Node(offsetX, offsetY, 120, 120, canvas, this, areaCast->label);
             this->AddNode(newNode);
-        }
     }
 }
 
@@ -165,11 +79,11 @@ void Area::Draw(wxDC& dc) const {
     wxFont oldFont = dc.GetFont();
     double s = canvas->scale;
 
-    wxPoint screenPos(position.x * canvas->scale + canvas->offset.m_x, position.y * canvas->scale + canvas->offset.m_y);
+    wxPoint screenPos(position.x * canvas->scale + canvas->offset.x, position.y * canvas->scale + canvas->offset.y);
     int w = (int)(position.width * s);
     int h = (int)(position.height * s);
 
-    dc.SetBrush(selected ? wxColour(70,130,255) : wxColour(186, 225, 255));
+    dc.SetBrush(isSelected ? wxColour(70,130,255) : wxColour(186, 225, 255));
     dc.SetPen(wxPen(*wxBLACK, std::max(1, (int)(2 * s))));
     dc.DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, (int)(10 * s));
     
@@ -183,29 +97,32 @@ void Area::Draw(wxDC& dc) const {
         port.Draw(dc, p);
     }
     
-    // if(selected){
-    //     dc.SetPen(wxPen(*wxBLACK, 1));
-    //     const int hs = 6;
-    //     wxPoint sp(pos.m_x * canvas->scale + canvas->offset.m_x, pos.m_y * canvas->scale + canvas->offset.m_y);
-    //     int w = width * canvas->scale;
-    //     int h = height * canvas->scale;
+    if(isSelected){
+        dc.SetPen(wxPen(*wxBLACK, 1));
+        const int hs = 6;
+        wxRect scaledRect(
+            position.x * canvas->scale + canvas->offset.x,
+            position.y * canvas->scale + canvas->offset.y,
+            position.width * canvas->scale,
+            position.height * canvas->scale
+        );
 
-    //     wxPoint handles[8] = {
-    //         {sp.x, sp.y},                   // TopLeft
-    //         {sp.x + w / 2, sp.y},           // Top
-    //         {sp.x + w, sp.y},               // TopRight
-    //         {sp.x, sp.y + h / 2},           // Left
-    //         {sp.x + w, sp.y + h / 2},       // Right
-    //         {sp.x, sp.y + h},               // BottomLeft
-    //         {sp.x + w / 2, sp.y + h},       // Bottom
-    //         {sp.x + w, sp.y + h}            // BottomRight
-    //     };
+        wxPoint handles[8] = {
+            scaledRect.GetTopLeft(),                                                            // TopLeft
+            wxPoint(scaledRect.GetLeft() + scaledRect.GetWidth() / 2, scaledRect.GetTop()),     // Top
+            scaledRect.GetTopRight(),                                                           // TopRight
+            wxPoint(scaledRect.GetLeft(), scaledRect.GetTop() + scaledRect.GetHeight() / 2),    // Left
+            wxPoint(scaledRect.GetRight(), scaledRect.GetTop() + scaledRect.GetHeight() / 2),   // Right
+            scaledRect.GetBottomLeft(),                                                         // BottomLeft
+            wxPoint(scaledRect.GetLeft() + scaledRect.GetWidth() / 2, scaledRect.GetBottom()),  // Bottom
+            scaledRect.GetBottomRight()                                                         // BottomRight
+        };
 
-    //     for (int i = 0; i < 8; ++i) {
-    //         wxRect handle(handles[i].x - hs / 2, handles[i].y - hs / 2, hs, hs);
-    //         dc.DrawRectangle(handle);
-    //     }
-    // }
+        for (int i = 0; i < 8; ++i) {
+            wxRect handle(handles[i].x - hs / 2, handles[i].y - hs / 2, hs, hs);
+            dc.DrawRectangle(handle);
+        }
+    }
 }
 
 
@@ -221,51 +138,39 @@ Area* Area::Deserialize(const std::string& line, MainCanvas* canvas) {
 
 
 void Area::AddSubArea(Area* area) {
-    subAreas.push_back(area);
+    childAreas.push_back(area);
+    canvas->UpdateAllShapesList();
     canvas->RefreshTree();
     canvas->Refresh();
 }
 
 void Area::AddNode(Node* node) {
-    nodes.push_back(node);
+    childNodes.push_back(node);
+    canvas->UpdateAllShapesList();
     canvas->RefreshTree();
     canvas->Refresh();
 }
 
-const std::vector<Area*>& Area::GetSubAreas() const{
-    return subAreas;
-}
-
-const std::vector<Node*>& Area::GetNodes() const{
-    return nodes;
-}
-
 const Port* Area::HitTestPort(const wxPoint& pos, const Shape** outShape) const {
-    for (std::vector<Area*>::const_reverse_iterator it = GetSubAreas().rbegin(); it != GetSubAreas().rend(); ++it)
+    for (std::vector<Area*>::const_reverse_iterator it = childAreas.rbegin(); it != childAreas.rend(); ++it)
         if(const Port* childPort = (*it)->HitTestPort(pos, outShape)) return childPort;
 
-    for (std::vector<Node*>::const_reverse_iterator it = GetNodes().rbegin(); it != GetNodes().rend(); ++it)
+    for (std::vector<Node*>::const_reverse_iterator it = childNodes.rbegin(); it != childNodes.rend(); ++it)
         if(const Port* childPort = (*it)->HitTestPort(pos, outShape)) return childPort;
 
     return Shape::HitTestPort(pos, outShape);
 }
 
-bool Area::HitTestShape(wxPoint& mouse) {
-    for (std::vector<Area*>::const_reverse_iterator it = GetSubAreas().rbegin(); it != GetSubAreas().rend(); ++it)
-        if((*it)->HitTestShape(mouse)) return true;
+ShapeHandle Area::HitTestShape(wxPoint& mouse) {
+    for (std::vector<Area*>::const_reverse_iterator it = childAreas.rbegin(); it != childAreas.rend(); ++it){
+        ShapeHandle ret = (*it)->HitTestShape(mouse);
+        if(ret.shape != nullptr) return ret;
+    }
 
-    for (std::vector<Node*>::const_reverse_iterator it = GetNodes().rbegin(); it != GetNodes().rend(); ++it)
-        if((*it)->HitTestShape(mouse)) return true;
+    for (std::vector<Node*>::const_reverse_iterator it = childNodes.rbegin(); it != childNodes.rend(); ++it){
+        ShapeHandle ret = (*it)->HitTestShape(mouse);
+        if(ret.shape != nullptr) return ret;
+    }
 
     return Shape::HitTestShape(mouse);
-}
-
-bool Area::OpenProperty(wxPoint& pos){
-    for (std::vector<Area*>::const_reverse_iterator it = GetSubAreas().rbegin(); it != GetSubAreas().rend(); ++it)
-        if((*it)->OpenProperty(pos)) return true;
-
-    for (std::vector<Node*>::const_reverse_iterator it = GetNodes().rbegin(); it != GetNodes().rend(); ++it)
-        if((*it)->OpenProperty(pos)) return true;
-
-    return Shape::OpenProperty(pos);
 }

@@ -25,14 +25,14 @@ void Node::Draw(wxDC &dc) const {
     wxFont oldFont = dc.GetFont();
     double s = canvas->scale;
 
-    wxPoint screenPos(position.x * canvas->scale + canvas->offset.m_x, position.y * canvas->scale + canvas->offset.m_y);
+    wxPoint screenPos(position.x * canvas->scale + canvas->offset.x, position.y * canvas->scale + canvas->offset.y);
     int w = (int)(position.width * s);
     int h = (int)(position.height * s);
 
     wxColour fill = overloaded ? wxColour(255, 100, 100)
                   : (active ? wxColour(180, 255, 180) : wxColour(200, 200, 200));
 
-    dc.SetBrush(selected ? wxBrush(*wxYELLOW) : wxBrush(fill));
+    dc.SetBrush(isSelected ? wxBrush(*wxYELLOW) : wxBrush(fill));
     dc.SetPen(wxPen(*wxBLACK, std::max(1, (int)(2 * s))));
     dc.DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, (int)(6 * s));
 
@@ -49,7 +49,7 @@ void Node::Draw(wxDC &dc) const {
     // if(selected){
     //     dc.SetPen(wxPen(*wxBLACK, 1));
     //     const int hs = 6;
-    //     wxPoint sp(pos.m_x * canvas->scale + canvas->offset.m_x, pos.m_y * canvas->scale + canvas->offset.m_y);
+    //     wxPoint sp(pos.m_x * canvas->scale + canvas->offset.x, pos.m_y * canvas->scale + canvas->offset.y);
     //     int w = width * canvas->scale;
     //     int h = height * canvas->scale;
 
@@ -72,7 +72,7 @@ void Node::Draw(wxDC &dc) const {
 }
 
 
-void Node::OpenPropertyDialog(MainCanvas* canvas) {
+void Node::OpenPropertyDialog() {
     wxDialog dlg(canvas, wxID_ANY, "Node Properties");
     wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
