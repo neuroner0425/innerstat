@@ -1,6 +1,6 @@
 #pragma once
-#include "Shape.h"
-#include "Port.h"
+#include "innerstat/client/shape.h"
+#include "innerstat/client/port.h"
 #include <vector>
 #include <string>
 

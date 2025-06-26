@@ -1,6 +1,6 @@
 #pragma once
-#include "Port.h"
-#include "Shape.h"
+#include "innerstat/client/port.h"
+#include "innerstat/client/shape.h"
 
 class Connection {
 public:

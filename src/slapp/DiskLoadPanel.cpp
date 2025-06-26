@@ -1,4 +1,4 @@
-#include "DiskLoadPanel.h"
+#include "innerstat/slapp/disk.h"
 
 #include <wx/msgdlg.h>
 #include <wx/sizer.h>

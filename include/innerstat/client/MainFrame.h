@@ -1,8 +1,8 @@
 #include <wx/wx.h>
 #include <wx/treectrl.h>
 #include <wx/splitter.h>
-#include "Canvas.h"
-#include "DialogManager.h"
+#include "innerstat/client/Canvas.h"
+#include "innerstat/client/dialog.h"
 
 class MainFrame : public wxFrame {
 private:

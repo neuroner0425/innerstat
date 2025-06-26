@@ -1,7 +1,7 @@
 #pragma once
-#include "Shape.h"
-#include "Node.h"
-#include "Port.h"
+#include "innerstat/client/shape.h"
+#include "innerstat/client/node.h"
+#include "innerstat/client/port.h"
 #include <string>
 #include <vector>
 

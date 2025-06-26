@@ -6,7 +6,7 @@
 #include <vector>
 #include <map>
 
-#include "Shape.h" // Shape 객체의 isSelected 변수를 접근하기 때문에 include
+#include "innerstat/client/shape.h" // Shape 객체의 isSelected 변수를 접근하기 때문에 include
 
 class Area;
 enum class AreaType;

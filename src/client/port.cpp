@@ -1,5 +1,5 @@
-#include "Port.h"
-#include "Canvas.h"
+#include "innerstat/client/port.h"
+#include "innerstat/client/canvas.h"
 
 Port::Port(MainCanvas* canvas, const std::string& id, const wxPoint2DDouble& relPos)
     : canvas(canvas), id(id), relativePos(relPos) {}

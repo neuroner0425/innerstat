@@ -1,7 +1,7 @@
-#include "DialogManager.h"
-#include "ShapeHandle.h"
-#include "Shape.h"
-#include "Area.h"
+#include "innerstat/client/dialog.h"
+#include "innerstat/client/enum_list.h"
+#include "innerstat/client/shape.h"
+#include "innerstat/client/area.h"
 
 #include <wx/wx.h>
 #include <wx/spinctrl.h>

@@ -6,11 +6,11 @@
 #include <unordered_map>
 #include <cmath>
 
-#include "Canvas.h"
-#include "Shape.h"
-#include "Area.h"
-#include "Connection.h"
-#include "MainFrame.h"
+#include "innerstat/client/canvas.h"
+#include "innerstat/client/shape.h"
+#include "innerstat/client/area.h"
+#include "innerstat/client/connection.h"
+#include "innerstat/client/MainFrame.h"
 
 MainCanvas::MainCanvas(wxWindow* parent, MainFrame* frame)
     : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxWANTS_CHARS), frame(frame) {

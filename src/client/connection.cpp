@@ -1,5 +1,5 @@
-#include "Connection.h"
-#include "Shape.h"
+#include "innerstat/client/connection.h"
+#include "innerstat/client/shape.h"
 
 void Connection::Draw(wxDC& dc, double scale, const wxPoint2DDouble& offset) const {
     if (!from || !to)

@@ -1,8 +1,8 @@
-#include "Area.h"
-#include "Node.h"
-#include "Canvas.h"
-#include "Port.h"
-#include "DialogManager.h"
+#include "innerstat/client/area.h"
+#include "innerstat/client/node.h"
+#include "innerstat/client/canvas.h"
+#include "innerstat/client/port.h"
+#include "innerstat/client/dialog.h"
 
 #include <wx/textdlg.h>
 #include <wx/textctrl.h>

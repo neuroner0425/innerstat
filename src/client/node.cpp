@@ -1,7 +1,7 @@
-#include "Node.h"
-#include "Area.h"
-#include "Canvas.h"
-#include "Port.h"
+#include "innerstat/client/node.h"
+#include "innerstat/client/area.h"
+#include "innerstat/client/canvas.h"
+#include "innerstat/client/port.h"
 #include <wx/textdlg.h>
 #include <wx/spinctrl.h>
 #include <sstream>

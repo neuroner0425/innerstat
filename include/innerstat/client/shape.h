@@ -1,7 +1,7 @@
 #pragma once
 #include <wx/wx.h>
-#include "Port.h"
-#include "ShapeHandle.h"
+#include "innerstat/client/port.h"
+#include "innerstat/client/enum_list.h"
 
 class MainCanvas;
 class Area;
@@ -33,8 +33,8 @@ public:
     /** @brief 도형을 직렬화하여 저장 가능한 문자열로 반환 */
     virtual std::string Serialize() const = 0;
 
-    /** @brief 도형이 보유한 포트 목록을 반환 (기본은 빈 목록) */
-    virtual const std::vector<Port>& GetPorts() const { return {}; }
+    /** @brief 도형이 보유한 포트 목록을 반환 */
+    virtual const std::vector<Port>& GetPorts() const = 0;
 
     /** @brief 주어진 좌표가 선택하고 있는 포트를 반환 */
     virtual const Port* HitTestPort(const wxPoint& pos, const Shape** outShape) const;

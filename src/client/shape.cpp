@@ -1,6 +1,6 @@
-#include "Shape.h"
-#include "Area.h"
-#include "Canvas.h"
+#include "innerstat/client/shape.h"
+#include "innerstat/client/area.h"
+#include "innerstat/client/canvas.h"
 
 Shape::Shape(int x, int y, int w, int h, MainCanvas* c, Area* p, const std::string& l)
     : position(wxPoint(x,y), wxSize(w, h)), canvas(c), parent(p), label(l) { }

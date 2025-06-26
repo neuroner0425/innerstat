@@ -1,4 +1,4 @@
-#include "CpuLoadPanel.h"
+#include "innerstat/slapp/cpu.h"
 
 #include <wx/sizer.h>
 
