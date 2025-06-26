@@ -1,12 +1,14 @@
-#include "Connection.h"
-#include "Shape.h"
+#include "innerstat/client/connection.h"
+#include "innerstat/client/shape.h"
 
 void Connection::Draw(wxDC& dc, double scale, const wxPoint2DDouble& offset) const {
     if (!from || !to)
         return;
 
-    wxPoint a = from->GetScreenPosition(fromShape->pos, fromShape->width, fromShape->height, scale, offset);
-    wxPoint b = to->GetScreenPosition(toShape->pos, toShape->width, toShape->height, scale, offset);
+    wxRect fromShapeRect(fromShape->position);
+    wxRect toShapeRect(toShape->position);
+    wxPoint a = from->GetScreenPosition(fromShapeRect.GetPosition(), fromShapeRect.width, fromShapeRect.height, scale, offset);
+    wxPoint b = to->GetScreenPosition(toShapeRect.GetPosition(), toShapeRect.width, toShapeRect.height, scale, offset);
 
     dc.SetPen(wxPen(*wxBLUE, (int)(2 * scale)));
 

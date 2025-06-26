@@ -1,4 +1,4 @@
-#include "MemoryLoadPanel.h"
+#include "innerstat/slapp/memory.h"
 
 #include <wx/msgdlg.h>
 #include <wx/sizer.h>

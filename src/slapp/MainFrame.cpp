@@ -1,7 +1,7 @@
-#include "MainFrame.h"
-#include "CpuLoadPanel.h"
-#include "MemoryLoadPanel.h"
-#include "DiskLoadPanel.h"
+#include "innerstat/slapp/main.h"
+#include "innerstat/slapp/cpu.h"
+#include "innerstat/slapp/memory.h"
+#include "innerstat/slapp/disk.h"
 
 #include <wx/sizer.h>
 

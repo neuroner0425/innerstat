@@ -2,8 +2,8 @@
 .idea/
 .venv/
 
-out/
+bin/
 build/
 tmp/
 
-CMakeLists.txt
+CMakeFiles
