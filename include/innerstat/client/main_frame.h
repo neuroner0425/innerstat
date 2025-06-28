@@ -27,7 +27,7 @@ private:
     
     /** @brief 키보드 눌림 처리 */
     void OnKeyDown(wxKeyEvent& evt){
-        if (canvas) {
+        if (evt.GetKeyCode() == WXK_SPACE && canvas) {
             canvas->OnKeyDown(evt);
         } else {
             evt.Skip();

@@ -48,10 +48,10 @@ public:
     static Area* Deserialize(const std::string& line, MainCanvas* canvas);
 
     /** @brief 자식 Area 추가 */
-    void AddSubArea(Area* area);
+    void AddChildArea(Area* area);
 
     /** @brief 자식 Node 추가 */
-    void AddNode(Node* node);
+    void AddChildNode(Node* node);
 
     /** @brief 자식 Area들 리스트 반환 */
     const std::vector<Area*>& GetSubAreas() const { return childAreas; };

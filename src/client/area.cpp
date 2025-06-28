@@ -71,12 +71,13 @@ void Area::OpenAddShapeDialog() {
             int offsetX = rect.x + 40 + childAreas.size() * 40;
             int offsetY = rect.y + 40;
             Area* newArea = new Area(offsetX, offsetY, 120, 120, canvas, this, areaCast->label, areaCast->areaType);
-            this->AddSubArea(newArea);
+            this->AddChildArea(newArea);
     }else{
+            NodeProperties* nodeCast = dynamic_cast<NodeProperties*>(ret);
             int offsetX = rect.x + 40 + childNodes.size() * 40;
             int offsetY = rect.y + 100;
-            Node* newNode = new Node(offsetX, offsetY, 120, 120, canvas, this, areaCast->label);
-            this->AddNode(newNode);
+            Node* newNode = new Node(offsetX, offsetY, 120, 120, canvas, this, nodeCast->label);
+            this->AddChildNode(newNode);
     }
 }
 
@@ -86,12 +87,18 @@ void Area::Draw(wxDC& dc) const {
     double s = canvas->scale;
 
     wxPoint screenPos(rect.x * canvas->scale + canvas->offset.x, rect.y * canvas->scale + canvas->offset.y);
+    wxRect scaledRect(
+        screenPos.x,
+        screenPos.y,
+        rect.width * canvas->scale,
+        rect.height * canvas->scale
+    );
     int w = (int)(rect.width * s);
     int h = (int)(rect.height * s);
 
     dc.SetBrush(isSelected ? wxColour(70,130,255) : wxColour(186, 225, 255));
     dc.SetPen(wxPen(*wxBLACK, std::max(1, (int)(2 * s))));
-    dc.DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, (int)(10 * s));
+    dc.DrawRoundedRectangle(scaledRect, (int)(10 * s));
     
     wxFont font((int)(9 * s), wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
     dc.SetFont(font);
@@ -105,29 +112,9 @@ void Area::Draw(wxDC& dc) const {
     
     if(isSelected){
         dc.SetPen(wxPen(*wxBLACK, 1));
-        const int hs = 6;
-        wxRect scaledRect(
-            rect.x * canvas->scale + canvas->offset.x,
-            rect.y * canvas->scale + canvas->offset.y,
-            rect.width * canvas->scale,
-            rect.height * canvas->scale
-        );
-
-        wxPoint handles[8] = {
-            scaledRect.GetTopLeft(),                                                            // TopLeft
-            wxPoint(scaledRect.GetLeft() + scaledRect.GetWidth() / 2, scaledRect.GetTop()),     // Top
-            scaledRect.GetTopRight(),                                                           // TopRight
-            wxPoint(scaledRect.GetLeft(), scaledRect.GetTop() + scaledRect.GetHeight() / 2),    // Left
-            wxPoint(scaledRect.GetRight(), scaledRect.GetTop() + scaledRect.GetHeight() / 2),   // Right
-            scaledRect.GetBottomLeft(),                                                         // BottomLeft
-            wxPoint(scaledRect.GetLeft() + scaledRect.GetWidth() / 2, scaledRect.GetBottom()),  // Bottom
-            scaledRect.GetBottomRight()                                                         // BottomRight
-        };
-
-        for (int i = 0; i < 8; ++i) {
-            wxRect handle(handles[i].x - hs / 2, handles[i].y - hs / 2, hs, hs);
-            dc.DrawRectangle(handle);
-        }
+        const int handleScale = 6;
+        wxRect handle(scaledRect.GetBottomRight() .x - handleScale / 2, scaledRect.GetBottomRight() .y - handleScale / 2, handleScale, handleScale);
+        dc.DrawRectangle(handle);
     }
 }
 
@@ -143,14 +130,14 @@ Area* Area::Deserialize(const std::string& line, MainCanvas* canvas) {
 }
 
 
-void Area::AddSubArea(Area* area) {
+void Area::AddChildArea(Area* area) {
     childAreas.push_back(area);
     canvas->UpdateAllShapesList();
     canvas->RefreshTree();
     canvas->Refresh();
 }
 
-void Area::AddNode(Node* node) {
+void Area::AddChildNode(Node* node) {
     childNodes.push_back(node);
     canvas->UpdateAllShapesList();
     canvas->RefreshTree();

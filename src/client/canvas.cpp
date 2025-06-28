@@ -3,6 +3,7 @@
 #endif
 
 #include <wx/dcbuffer.h>
+#include <wx/graphics.h>
 #include <stdio.h>
 
 #include <sstream>
@@ -28,6 +29,7 @@ MainCanvas::MainCanvas(wxWindow* parent, MainFrame* frame)
     Bind(wxEVT_LEFT_UP, &MainCanvas::OnLeftUp, this);
     Bind(wxEVT_MIDDLE_DOWN, &MainCanvas::OnMiddleDown, this);
     Bind(wxEVT_MIDDLE_UP, &MainCanvas::OnMiddleUp, this);
+    Bind(wxEVT_KEY_DOWN, &MainCanvas::OnKeyDown, this);
     Bind(wxEVT_KEY_UP, &MainCanvas::OnKeyUp, this);
     Bind(wxEVT_MOTION, &MainCanvas::OnMotion, this);
     Bind(wxEVT_LEFT_DCLICK, &MainCanvas::OnLeftDClick, this);
@@ -86,6 +88,9 @@ wxPoint MainCanvas::SnapToGrid(const wxPoint& pt) {
 void MainCanvas::OnPaint(wxPaintEvent&) {
     wxAutoBufferedPaintDC dc(this);
     dc.Clear();
+
+    wxGraphicsContext* gc = wxGraphicsContext::Create(dc);
+    if (!gc) return;
     
     // 1. 그리드
     wxSize sz = GetClientSize();
@@ -107,18 +112,19 @@ void MainCanvas::OnPaint(wxPaintEvent&) {
     for (const Shape* s : allShapes)
         s->Draw(dc);
     
-    // 드래그 미리보기
+    // dragging 및 resizing 미리보기
     if (selectedShape && (action == UserAction::Dragging || action == UserAction::Resizing)) {
         wxRect rect(previewRect);
         wxPoint screenPos(rect.x * scale + offset.x, rect.y * scale + offset.y);
         int w = (int)(rect.width * scale);
         int h = (int)(rect.height * scale);
 
-        wxBrush brush(wxColour(150, 200, 255, 30));
-        wxPen pen(wxColour(80,80,200,30), 2, wxPENSTYLE_DOT_DASH);
-        dc.SetBrush(brush);
-        dc.SetPen(pen);
-        dc.DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, (int)(10 * scale));
+        wxColour fill(0, 100, 255, 70);  // 알파 70
+        wxColour border(0, 60, 150, 180); // 알파 180
+
+        gc->SetBrush(wxBrush(fill));
+        gc->SetPen(wxPen(border, 2, wxPENSTYLE_DOT_DASH));
+        gc->DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, 10 * scale);
     }
 
     // 연결선
@@ -154,6 +160,8 @@ void MainCanvas::OnPaint(wxPaintEvent&) {
             dc.DrawText(wxString::Format("current_position(%d, %d)", lastMouse.x, lastMouse.y), wxPoint(0, 40));
         }
     }
+    
+    delete gc;
 }
 
 
@@ -256,33 +264,26 @@ void MainCanvas::OnLeftUp(wxMouseEvent& evt) {
         action = UserAction::None;
         pendingPort = nullptr;
         pendingShape = nullptr;
-        Refresh();
-        return;
     }
 
     // 2. 패닝
-    if (action == UserAction::Panning) {
+    else if (action == UserAction::Panning) {
         action = UserAction::None;
-        Refresh();
-        return;
     }
 
     // 2. 도형 이동
-    if (action == UserAction::Dragging) {
-        selectedShape->rect = previewRect;
+    else if (action == UserAction::Dragging) {
+        if(selectedShape) selectedShape->rect = previewRect;
         action = UserAction::None;
-        Refresh();
-        return;
     }
 
     // 3. 도형 크기 조절
-    if (action == UserAction::Resizing) {
-        selectedShape->rect = previewRect;
+    else if (action == UserAction::Resizing) {
+        if(selectedShape) selectedShape->rect = previewRect;
         action = UserAction::None;
         SetCursor(wxCursor(wxCURSOR_DEFAULT));
-        Refresh();
-        return;
     }
+    Refresh();
 }
 
 void MainCanvas::OnMotion(wxMouseEvent& evt) {
@@ -323,11 +324,14 @@ void MainCanvas::OnMotion(wxMouseEvent& evt) {
         diffPos.x /= scale;
         diffPos.y /= scale;
         diffPos += actionOffset;
+        s->rect.SetBottomRight(diffPos);
         previewRect.SetBottomRight(SnapToGrid(diffPos));
 
         // 최소 크기 보장
         if (s->rect.width < GRID_SIZE) s->rect.width = GRID_SIZE;
         if (s->rect.height < GRID_SIZE) s->rect.height = GRID_SIZE;
+        if (previewRect.width < GRID_SIZE) previewRect.width = GRID_SIZE;
+        if (previewRect.height < GRID_SIZE) previewRect.height = GRID_SIZE;
         Refresh();
         return;
     }
@@ -435,14 +439,18 @@ void MainCanvas::UpdateAllShapesList() {
 void MainCanvas::OnKeyDown(wxKeyEvent& evt) {
     if (evt.GetKeyCode() == WXK_SPACE) {
         SetFocus();
-        if(!spacePressed){
-            printf("패닝 시작!");
-        }
         spacePressed = true;
         evt.StopPropagation();
         SetCursor(wxCursor(wxCURSOR_HAND));
         return;
     }
+
+    else if (evt.GetKeyCode() == WXK_RETURN) {
+        if(selectedShape) selectedShape->OpenPropertyDialog();
+        evt.StopPropagation();
+        return;
+    }
+    
     evt.Skip();
 }
 
