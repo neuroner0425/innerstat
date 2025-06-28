@@ -1,6 +1,13 @@
-#pragma once
+#ifndef INNERSTAT_CLIENT_CONNECTION_H
+#define INNERSTAT_CLIENT_CONNECTION_H
+
+#ifndef INNERSTAT_CLIENT_BASE_H
+    #include "innerstat/client/base.h"
+#endif
 #include "innerstat/client/port.h"
 #include "innerstat/client/shape.h"
+
+INNERSTAT_BEGIN_NAMESPACE
 
 class Connection {
 public:
@@ -20,3 +27,6 @@ public:
     /** @brief 연결선을 그리는 함수 */
     void Draw(wxDC& dc, double scale, const wxPoint2DDouble& offset) const;
 };
+
+INNERSTAT_END_NAMESPACE
+#endif

@@ -1,16 +1,20 @@
-#pragma once
+#ifndef INNERSTAT_CLIENT_AREA_H
+#define INNERSTAT_CLIENT_AREA_H
+
+#ifndef INNERSTAT_CLIENT_BASE_H
+    #include "innerstat/client/base.h"
+#endif
+
 #include "innerstat/client/shape.h"
 #include "innerstat/client/node.h"
 #include "innerstat/client/port.h"
 #include <string>
 #include <vector>
 
-class MainCanvas;
+INNERSTAT_BEGIN_NAMESPACE
 
-enum class AreaType {
-    None = 0,
-    OS, VM, Container, Network
-};
+class MainCanvas;
+class Port;
 
 class Area : public Shape {
 public:
@@ -78,3 +82,6 @@ public:
     /** @brief 자식 추가 다이얼로그 열기 */
     void OpenAddShapeDialog();
 };
+INNERSTAT_END_NAMESPACE
+
+#endif

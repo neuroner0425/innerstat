@@ -1,7 +1,13 @@
-#pragma once
+#ifndef INNERSTAT_CLIENT_DIALOG_H
+#define INNERSTAT_CLIENT_DIALOG_H
+
+#ifndef INNERSTAT_CLIENT_BASE_H
+    #include "innerstat/client/base.h"
+#endif
 #include <wx/wx.h>
 
-enum class AreaType;
+INNERSTAT_BEGIN_NAMESPACE
+
 class Area;
 
 class ShapeProperties {
@@ -29,3 +35,5 @@ public:
 AreaProperties* ShowAddAreaDialog(wxWindow* parent);
 ShapeProperties* ShowAddShapeDialog(wxWindow* parent);
 AreaProperties* ShowAreaPropertyDialog(wxWindow* parent, Area* area);
+INNERSTAT_END_NAMESPACE
+#endif

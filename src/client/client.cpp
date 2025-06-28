@@ -2,7 +2,9 @@
 #include <wx/treectrl.h>
 #include <wx/splitter.h>
 #include "innerstat/client/canvas.h"
-#include "innerstat/client/MainFrame.h"
+#include "innerstat/client/main_frame.h"
+
+INNERSTAT_BEGIN_NAMESPACE
 
 class MyApp : public wxApp {
 public:
@@ -14,3 +16,4 @@ public:
 };
 
 wxIMPLEMENT_APP(MyApp);
+INNERSTAT_END_NAMESPACE

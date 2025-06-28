@@ -1,12 +1,14 @@
 #include "innerstat/client/connection.h"
 #include "innerstat/client/shape.h"
 
+INNERSTAT_BEGIN_NAMESPACE
+
 void Connection::Draw(wxDC& dc, double scale, const wxPoint2DDouble& offset) const {
     if (!from || !to)
         return;
 
-    wxRect fromShapeRect(fromShape->position);
-    wxRect toShapeRect(toShape->position);
+    wxRect fromShapeRect(fromShape->rect);
+    wxRect toShapeRect(toShape->rect);
     wxPoint a = from->GetScreenPosition(fromShapeRect.GetPosition(), fromShapeRect.width, fromShapeRect.height, scale, offset);
     wxPoint b = to->GetScreenPosition(toShapeRect.GetPosition(), toShapeRect.width, toShapeRect.height, scale, offset);
 
@@ -21,3 +23,5 @@ void Connection::Draw(wxDC& dc, double scale, const wxPoint2DDouble& offset) con
     dc.DrawLine(b.x, b.y - minimumLineLength, b.x, midY);
     dc.DrawLine(b.x, b.y, b.x, b.y - minimumLineLength);
 }
+
+INNERSTAT_END_NAMESPACE

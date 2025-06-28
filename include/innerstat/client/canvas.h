@@ -1,4 +1,9 @@
-#pragma once
+#ifndef INNERSTAT_CLIENT_CANVAS_H
+#define INNERSTAT_CLIENT_CANVAS_H
+
+#ifndef INNERSTAT_CLIENT_BASE_H
+    #include "innerstat/client/base.h"
+#endif
 #include <wx/wx.h>
 #include <wx/listbox.h>
 #include <wx/treectrl.h>
@@ -8,16 +13,12 @@
 
 #include "innerstat/client/shape.h" // Shape 객체의 isSelected 변수를 접근하기 때문에 include
 
+INNERSTAT_BEGIN_NAMESPACE
+
 class Area;
-enum class AreaType;
 class Connection;
 class MainFrame;
-
-constexpr int GRID_SIZE = 40;
-
-enum class UserAction{
-    None = 0, connecting, dragging, resizing, panning
-};
+class Port;
 
 class MainCanvas : public wxPanel {
 public:
@@ -92,10 +93,10 @@ private:
     void OnFirstIdle(wxIdleEvent& evt);
 
     /** @brief */
-    void ResizingShape(Shape* shape, HandleType& handleType);
+    void ResizingShape(Shape* shape, HandleType& handle_type, wxPoint& mouse);
 
     /** @brief */
-    void DraggingShape(Shape* shape, wxPoint& pt);
+    void DraggingShape(Shape* shape, wxPoint& mouse);
 
     /** @brief */
     void StartPanning();
@@ -141,3 +142,7 @@ private:
     /** @brief 도형 더블클릭 시 속성창 열기 */
     void OnLeftDClick(wxMouseEvent& evt);
 };
+
+INNERSTAT_END_NAMESPACE
+
+#endif

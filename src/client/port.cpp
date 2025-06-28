@@ -1,6 +1,8 @@
 #include "innerstat/client/port.h"
 #include "innerstat/client/canvas.h"
 
+INNERSTAT_BEGIN_NAMESPACE
+
 Port::Port(MainCanvas* canvas, const std::string& id, const wxPoint2DDouble& relPos)
     : canvas(canvas), id(id), relativePos(relPos) {}
 
@@ -18,3 +20,5 @@ void Port::Draw(wxDC& dc, const wxPoint& screenPos) const {
     dc.SetPen(wxPen(*wxBLACK, std::max(1, (int)(1 * s))));
     dc.DrawRectangle(screenPos - wxPoint(width / 2, width / 2), wxSize(width, width));
 }
+
+INNERSTAT_END_NAMESPACE

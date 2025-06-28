@@ -1,3 +1,7 @@
+#ifndef INNERSTAT_CLIENT_BASE_H
+    #include "innerstat/client/base.h"
+#endif
+
 #include <wx/dcbuffer.h>
 #include <stdio.h>
 
@@ -9,8 +13,11 @@
 #include "innerstat/client/canvas.h"
 #include "innerstat/client/shape.h"
 #include "innerstat/client/area.h"
+#include "innerstat/client/port.h"
 #include "innerstat/client/connection.h"
-#include "innerstat/client/MainFrame.h"
+#include "innerstat/client/main_frame.h"
+
+INNERSTAT_BEGIN_NAMESPACE
 
 MainCanvas::MainCanvas(wxWindow* parent, MainFrame* frame)
     : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxWANTS_CHARS), frame(frame) {
@@ -95,32 +102,32 @@ void MainCanvas::OnPaint(wxPaintEvent&) {
         dc.DrawLine(0, mid_y + y, sz.GetWidth(), mid_y + y);
         dc.DrawLine(0, mid_y - y, sz.GetWidth(), mid_y - y);
     }
+
+    // 도형
+    for (const Shape* s : allShapes)
+        s->Draw(dc);
     
     // 드래그 미리보기
-    if (selectedShape && (action == UserAction::dragging)) {
+    if (selectedShape && (action == UserAction::Dragging || action == UserAction::Resizing)) {
         wxRect rect(previewRect);
         wxPoint screenPos(rect.x * scale + offset.x, rect.y * scale + offset.y);
         int w = (int)(rect.width * scale);
         int h = (int)(rect.height * scale);
 
-        wxBrush brush(wxColour(150, 200, 255, 90));
-        wxPen pen(wxColour(80,80,200,170), 2, wxPENSTYLE_DOT_DASH);
+        wxBrush brush(wxColour(150, 200, 255, 30));
+        wxPen pen(wxColour(80,80,200,30), 2, wxPENSTYLE_DOT_DASH);
         dc.SetBrush(brush);
         dc.SetPen(pen);
         dc.DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, (int)(10 * scale));
     }
-
-    // 도형
-    for (const Shape* s : allShapes)
-        s->Draw(dc);
 
     // 연결선
     for (const Connection& c : connections)
         c.Draw(dc, scale, offset);
 
     // 연결선 미리보기
-    if (action == UserAction::connecting && pendingPort) {
-        wxRect pendingShapePosition(pendingShape->position);
+    if (action == UserAction::Connecting && pendingPort) {
+        wxRect pendingShapePosition(pendingShape->rect);
         wxPoint start = pendingPort->GetScreenPosition(
             pendingShapePosition.GetPosition(), pendingShapePosition.width, pendingShapePosition.height, scale, offset);
         wxPoint end = actionMousePos;
@@ -133,10 +140,10 @@ void MainCanvas::OnPaint(wxPaintEvent&) {
         std::string actionStr("Unknown");
         switch (action) {
             case UserAction::None: actionStr =  "None"; break;
-            case UserAction::connecting: actionStr =  "connecting"; break;
-            case UserAction::dragging: actionStr =  "dragging"; break;
-            case UserAction::resizing: actionStr =  "resizing"; break;
-            case UserAction::panning: actionStr =  "panning"; break;
+            case UserAction::Connecting: actionStr =  "connecting"; break;
+            case UserAction::Dragging: actionStr =  "dragging"; break;
+            case UserAction::Resizing: actionStr =  "resizing"; break;
+            case UserAction::Panning: actionStr =  "panning"; break;
         }
         dc.SetBrush(wxBrush(*wxRED));
         dc.SetPen(*wxBLACK_PEN);
@@ -202,7 +209,7 @@ void MainCanvas::OnLeftDown(wxMouseEvent& evt) {
     if (clickedPort) {
         pendingPort = clickedPort;
         pendingShape = clickedShape;
-        action = UserAction::dragging;
+        action = UserAction::Dragging;
         CaptureMouse();
         return;
     }
@@ -210,13 +217,13 @@ void MainCanvas::OnLeftDown(wxMouseEvent& evt) {
     // 2. 도형 선택 감지(도형 이동, 도형 크기 조절 작업)
     for(std::vector<Area*>::const_reverse_iterator it = uppermostAreas.rbegin(); it != uppermostAreas.rend(); ++it){
         ShapeHandle sh = (*it)->HitTestShape(mouse);
-        if(sh.shape != nullptr && sh.handleType != HandleType::None){
-            if (sh.handleType == HandleType::Body){
+        if(sh.shape != nullptr && sh.handle_type != HandleType::None){
+            if (sh.handle_type == HandleType::Body){
                 DraggingShape(sh.shape, mouse);
             }
             else{
-                if(selectedShape == sh.shape)
-                    ResizingShape(sh.shape, sh.handleType);
+                if(selectedShape == sh.shape && sh.handle_type == HandleType::BottomRight)
+                    ResizingShape(sh.shape, sh.handle_type, mouse);
                 else
                     DraggingShape(sh.shape, mouse);
             }
@@ -235,7 +242,7 @@ void MainCanvas::OnLeftUp(wxMouseEvent& evt) {
     if (HasCapture()) ReleaseMouse();
 
     // 1. 포트간 연결
-    if (action == UserAction::connecting) {
+    if (action == UserAction::Connecting) {
         wxPoint mouse = evt.GetPosition();
         const Shape* hoveredShape = nullptr;
         const Port* hoveredPort = nullptr;
@@ -254,23 +261,25 @@ void MainCanvas::OnLeftUp(wxMouseEvent& evt) {
     }
 
     // 2. 패닝
-    if (action == UserAction::panning) {
+    if (action == UserAction::Panning) {
         action = UserAction::None;
         Refresh();
         return;
     }
 
     // 2. 도형 이동
-    if (action == UserAction::dragging) {
-        selectedShape->position = previewRect;
+    if (action == UserAction::Dragging) {
+        selectedShape->rect = previewRect;
         action = UserAction::None;
         Refresh();
         return;
     }
 
     // 3. 도형 크기 조절
-    if (action == UserAction::resizing) {
+    if (action == UserAction::Resizing) {
+        selectedShape->rect = previewRect;
         action = UserAction::None;
+        SetCursor(wxCursor(wxCURSOR_DEFAULT));
         Refresh();
         return;
     }
@@ -282,7 +291,7 @@ void MainCanvas::OnMotion(wxMouseEvent& evt) {
     lastMouse = evt.GetPosition();
 
     // 1. 포트 간 연결
-    if (action == UserAction::connecting) {
+    if (action == UserAction::Connecting) {
         actionMousePos = evt.GetPosition();
         Refresh(); // Paint에서 임시선 그림
         return;
@@ -297,7 +306,7 @@ void MainCanvas::OnMotion(wxMouseEvent& evt) {
     }
     
     // 3. 도형 이동
-    if (action == UserAction::dragging && selectedShape != nullptr) {
+    if (action == UserAction::Dragging && selectedShape != nullptr) {
         diffPos.x /= scale;
         diffPos.y /= scale;
         diffPos += actionOffset;
@@ -308,25 +317,17 @@ void MainCanvas::OnMotion(wxMouseEvent& evt) {
     }
 
     // 4. 도형 크기 조절
-    if (action == UserAction::resizing && selectedShape != nullptr) {
+    if (action == UserAction::Resizing && selectedShape != nullptr) {
         Shape* s = selectedShape;
-        double dx = delta.x / scale, dy = delta.y / scale;
 
-        switch (activeHandle) {
-            case HandleType::Right:        s->position.width += dx; break;
-            case HandleType::Bottom:       s->position.height += dy; break;
-            case HandleType::BottomRight:  s->position.width += dx; s->position.height += dy; break;
-            case HandleType::Left:         s->position.x += dx; s->position.width -= dx; break;
-            case HandleType::Top:          s->position.y += dy; s->position.height -= dy; break;
-            case HandleType::TopLeft:      s->position.x += dx; s->position.width -= dx; s->position.y += dy; s->position.height -= dy; break;
-            case HandleType::TopRight:     s->position.y += dy; s->position.height -= dy; s->position.width += dx; break;
-            case HandleType::BottomLeft:   s->position.x += dx; s->position.width -= dx; s->position.height += dy; break;
-            default: break;
-        }
+        diffPos.x /= scale;
+        diffPos.y /= scale;
+        diffPos += actionOffset;
+        previewRect.SetBottomRight(SnapToGrid(diffPos));
 
         // 최소 크기 보장
-        if (s->position.width < 30) s->position.width = 30;
-        if (s->position.height < 20) s->position.height = 20;
+        if (s->rect.width < GRID_SIZE) s->rect.width = GRID_SIZE;
+        if (s->rect.height < GRID_SIZE) s->rect.height = GRID_SIZE;
         Refresh();
         return;
     }
@@ -336,27 +337,31 @@ void MainCanvas::OnLeftDClick(wxMouseEvent& evt) {
     wxPoint pos = evt.GetPosition();
     for (std::vector<Area*>::const_reverse_iterator it = uppermostAreas.rbegin(); it != uppermostAreas.rend(); ++it) {
         ShapeHandle sh = (*it)->HitTestShape(pos);
-        if(sh.shape != nullptr && sh.handleType != HandleType::None){
+        if(sh.shape != nullptr && sh.handle_type != HandleType::None){
             sh.shape->OpenPropertyDialog();
             return;
         }
     }
 }
 
-void MainCanvas::ResizingShape(Shape* shape, HandleType& handleType){
-    this->activeHandle = handleType;
+void MainCanvas::ResizingShape(Shape* shape, HandleType& handle_type, wxPoint& mouse){
+    this->activeHandle = handle_type;
+    actionMousePos = mouse;
+    actionOffset = shape->rect.GetBottomRight();
     SelectShape(shape);
-    action = UserAction::resizing;
+    previewRect = shape->rect;
+    action = UserAction::Resizing;
+    SetCursor(wxCursor(wxCURSOR_SIZING));
     CaptureMouse();
     Refresh();
 }
 
-void MainCanvas::DraggingShape(Shape* shape, wxPoint& pt){
-    actionMousePos = pt;
+void MainCanvas::DraggingShape(Shape* shape, wxPoint& mouse){
+    actionMousePos = mouse;
     actionOffset = shape->GetPosition();
     SelectShape(shape);
-    previewRect = shape->position;
-    action = UserAction::dragging;
+    previewRect = shape->rect;
+    action = UserAction::Dragging;
     CaptureMouse();
     Refresh();
 }
@@ -466,8 +471,8 @@ void MainCanvas::OnMiddleUp(wxMouseEvent& evt) {
 }
 
 void MainCanvas::StartPanning(){
-    if(action != UserAction::panning){
-        action = UserAction::panning;
+    if(action != UserAction::Panning){
+        action = UserAction::Panning;
         actionOffset = offset;
         SetCursor(wxCursor(wxCURSOR_HAND));
         CaptureMouse();
@@ -492,3 +497,5 @@ void MainCanvas::SelectShape(Shape* shape){
     }
     Refresh();
 }
+
+INNERSTAT_END_NAMESPACE

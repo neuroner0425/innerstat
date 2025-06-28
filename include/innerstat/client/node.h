@@ -1,8 +1,16 @@
-#pragma once
+#ifndef INNERSTAT_CLIENT_NODE_H
+#define INNERSTAT_CLIENT_NODE_H
+
+#ifndef INNERSTAT_CLIENT_BASE_H
+    #include "innerstat/client/base.h"
+#endif
+
 #include "innerstat/client/shape.h"
 #include "innerstat/client/port.h"
 #include <vector>
 #include <string>
+
+INNERSTAT_BEGIN_NAMESPACE
 
 class MainCanvas;
 class Area;
@@ -35,3 +43,5 @@ public:
     /** @brief 문자열로부터 Node 객체 생성 */
     static Node* Deserialize(const std::string& line, MainCanvas* canvas);
 };
+INNERSTAT_END_NAMESPACE
+#endif

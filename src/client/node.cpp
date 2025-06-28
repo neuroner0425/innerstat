@@ -6,6 +6,8 @@
 #include <wx/spinctrl.h>
 #include <sstream>
 
+INNERSTAT_BEGIN_NAMESPACE
+
 Node::Node(int x, int y, int w, int h, 
     MainCanvas* c, Area* p, const std::string& l)
     : Shape(x, y, w, h, c, p, l), active(true), overloaded(false){
@@ -25,9 +27,9 @@ void Node::Draw(wxDC &dc) const {
     wxFont oldFont = dc.GetFont();
     double s = canvas->scale;
 
-    wxPoint screenPos(position.x * canvas->scale + canvas->offset.x, position.y * canvas->scale + canvas->offset.y);
-    int w = (int)(position.width * s);
-    int h = (int)(position.height * s);
+    wxPoint screenPos(rect.x * canvas->scale + canvas->offset.x, rect.y * canvas->scale + canvas->offset.y);
+    int w = (int)(rect.width * s);
+    int h = (int)(rect.height * s);
 
     wxColour fill = overloaded ? wxColour(255, 100, 100)
                   : (active ? wxColour(180, 255, 180) : wxColour(200, 200, 200));
@@ -42,7 +44,7 @@ void Node::Draw(wxDC &dc) const {
     dc.SetFont(oldFont);
 
     for (const auto& port : ports) {
-        wxPoint p = port.GetScreenPosition(position.GetPosition(), position.width, position.height, s, canvas->offset);
+        wxPoint p = port.GetScreenPosition(rect.GetPosition(), rect.width, rect.height, s, canvas->offset);
         port.Draw(dc, p);
     }
     
@@ -106,3 +108,5 @@ Node* Node::Deserialize(const std::string& line, MainCanvas* p) {
     // TODO
     return nullptr;
 }
+
+INNERSTAT_END_NAMESPACE

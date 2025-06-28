@@ -1,8 +1,17 @@
+#ifndef INNERSTAT_CLIENT_MAIN_FRAME_H
+#define INNERSTAT_CLIENT_MAIN_FRAME_H
+
+#ifndef INNERSTAT_CLIENT_BASE_H
+    #include "innerstat/client/base.h"
+#endif
+
 #include <wx/wx.h>
 #include <wx/treectrl.h>
 #include <wx/splitter.h>
 #include "innerstat/client/Canvas.h"
 #include "innerstat/client/dialog.h"
+
+INNERSTAT_BEGIN_NAMESPACE
 
 class MainFrame : public wxFrame {
 private:
@@ -96,3 +105,7 @@ public:
         }, wxID_SAVE);
     }
 };
+
+INNERSTAT_END_NAMESPACE
+
+#endif

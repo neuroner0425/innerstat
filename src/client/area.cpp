@@ -1,3 +1,7 @@
+#ifndef INNERSTAT_CLIENT_BASE_H
+    #include "innerstat/client/base.h"
+#endif
+
 #include "innerstat/client/area.h"
 #include "innerstat/client/node.h"
 #include "innerstat/client/canvas.h"
@@ -12,6 +16,8 @@
 #include <format>
 #include <stdio.h>
 #include <string>
+
+INNERSTAT_BEGIN_NAMESPACE
 
 Area::Area(int x, int y, int w, int h, 
     MainCanvas* c, Area* p, const std::string& l,
@@ -62,13 +68,13 @@ void Area::OpenAddShapeDialog() {
 
     AreaProperties* areaCast = dynamic_cast<AreaProperties*>(ret);
     if(areaCast){
-            int offsetX = position.x + 40 + childAreas.size() * 40;
-            int offsetY = position.y + 40;
+            int offsetX = rect.x + 40 + childAreas.size() * 40;
+            int offsetY = rect.y + 40;
             Area* newArea = new Area(offsetX, offsetY, 120, 120, canvas, this, areaCast->label, areaCast->areaType);
             this->AddSubArea(newArea);
     }else{
-            int offsetX = position.x + 40 + childNodes.size() * 40;
-            int offsetY = position.y + 100;
+            int offsetX = rect.x + 40 + childNodes.size() * 40;
+            int offsetY = rect.y + 100;
             Node* newNode = new Node(offsetX, offsetY, 120, 120, canvas, this, areaCast->label);
             this->AddNode(newNode);
     }
@@ -79,9 +85,9 @@ void Area::Draw(wxDC& dc) const {
     wxFont oldFont = dc.GetFont();
     double s = canvas->scale;
 
-    wxPoint screenPos(position.x * canvas->scale + canvas->offset.x, position.y * canvas->scale + canvas->offset.y);
-    int w = (int)(position.width * s);
-    int h = (int)(position.height * s);
+    wxPoint screenPos(rect.x * canvas->scale + canvas->offset.x, rect.y * canvas->scale + canvas->offset.y);
+    int w = (int)(rect.width * s);
+    int h = (int)(rect.height * s);
 
     dc.SetBrush(isSelected ? wxColour(70,130,255) : wxColour(186, 225, 255));
     dc.SetPen(wxPen(*wxBLACK, std::max(1, (int)(2 * s))));
@@ -93,7 +99,7 @@ void Area::Draw(wxDC& dc) const {
     dc.SetFont(oldFont);
 
     for (const Port& port : ports) {
-        wxPoint p = port.GetScreenPosition(position.GetPosition(), position.width, position.height, s, canvas->offset);
+        wxPoint p = port.GetScreenPosition(rect.GetPosition(), rect.width, rect.height, s, canvas->offset);
         port.Draw(dc, p);
     }
     
@@ -101,10 +107,10 @@ void Area::Draw(wxDC& dc) const {
         dc.SetPen(wxPen(*wxBLACK, 1));
         const int hs = 6;
         wxRect scaledRect(
-            position.x * canvas->scale + canvas->offset.x,
-            position.y * canvas->scale + canvas->offset.y,
-            position.width * canvas->scale,
-            position.height * canvas->scale
+            rect.x * canvas->scale + canvas->offset.x,
+            rect.y * canvas->scale + canvas->offset.y,
+            rect.width * canvas->scale,
+            rect.height * canvas->scale
         );
 
         wxPoint handles[8] = {
@@ -174,3 +180,5 @@ ShapeHandle Area::HitTestShape(wxPoint& mouse) {
 
     return Shape::HitTestShape(mouse);
 }
+
+INNERSTAT_END_NAMESPACE

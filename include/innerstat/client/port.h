@@ -1,6 +1,14 @@
-#pragma once
+#ifndef INNERSTAT_CLIENT_PORT_H
+#define INNERSTAT_CLIENT_PORT_H
+
+#ifndef INNERSTAT_CLIENT_BASE_H
+    #include "innerstat/client/base.h"
+#endif
+
 #include <wx/wx.h>
 #include <string>
+
+INNERSTAT_BEGIN_NAMESPACE
 
 class MainCanvas;
 
@@ -21,3 +29,5 @@ public:
     /** @brief 포트를 화면에 원 형태로 그리기 */
     void Draw(wxDC& dc, const wxPoint& screenPos) const;
 };
+INNERSTAT_END_NAMESPACE
+#endif

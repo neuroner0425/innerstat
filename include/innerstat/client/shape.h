@@ -1,14 +1,21 @@
-#pragma once
+#ifndef INNERSTAT_CLIENT_SHAPE_H
+#define INNERSTAT_CLIENT_SHAPE_H
+
+#ifndef INNERSTAT_CLIENT_BASE_H
+    #include "innerstat/client/base.h"
+#endif
+
 #include <wx/wx.h>
-#include "innerstat/client/port.h"
-#include "innerstat/client/enum_list.h"
+
+INNERSTAT_BEGIN_NAMESPACE
 
 class MainCanvas;
 class Area;
+class Port;
 
 class Shape {
 public:
-    wxRect position;
+    wxRect rect;
     MainCanvas* canvas = nullptr;
     Area* parent = nullptr;
     std::string label;
@@ -43,14 +50,16 @@ public:
     virtual ShapeHandle HitTestShape(wxPoint& mouse);
 
     /** @brief 도형의 위치를 설정 */
-    inline void SetPosition(const wxPoint& pos) { position.SetPosition(pos); }
+    inline void SetPosition(const wxPoint& pos) { rect.SetPosition(pos); }
 
     /** @brief 도형의 위치를 반환 */
-    inline wxPoint GetPosition() const { return position.GetPosition(); }
+    inline wxPoint GetPosition() const { return rect.GetPosition(); }
 
     /** @brief 도형의 크기를 설정 */
-    inline void SetSize(const wxSize& size) { position.SetSize(size); }
+    inline void SetSize(const wxSize& size) { rect.SetSize(size); }
 
     /** @brief 도형의 크기를 반환 */
-    inline wxSize GetSize() const { return position.GetSize(); }
+    inline wxSize GetSize() const { return rect.GetSize(); }
 };
+INNERSTAT_END_NAMESPACE
+#endif

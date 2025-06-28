@@ -1,10 +1,14 @@
 #include "innerstat/client/dialog.h"
-#include "innerstat/client/enum_list.h"
+#ifndef INNERSTAT_CLIENT_BASE_H
+    #include "innerstat/client/base.h"
+#endif
 #include "innerstat/client/shape.h"
 #include "innerstat/client/area.h"
 
 #include <wx/wx.h>
 #include <wx/spinctrl.h>
+
+INNERSTAT_BEGIN_NAMESPACE
 
 AreaProperties* ShowAddAreaDialog(wxWindow* parent){
     wxDialog dlg(parent, wxID_ANY, "Add Area");
@@ -148,3 +152,5 @@ AreaProperties* ShowAreaPropertyDialog(wxWindow* parent, Area* area) {
     }
     return nullptr;
 }
+
+INNERSTAT_END_NAMESPACE
