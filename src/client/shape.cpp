@@ -105,10 +105,6 @@ void Shape::SetPortCount(int count) {
 }
 
 const Port* Shape::HitTestPort(const wxPoint& pos, const Shape** outShape) const {
-    for (std::vector<Shape*>::const_reverse_iterator it = childAreas.rbegin(); it != childAreas.rend(); ++it)
-        if(const Port* childPort = (*it)->HitTestPort(pos, outShape)) return childPort;
-
-    // 현재 도형
     const std::vector<Port>& ports = this->GetPorts();
     for (const Port& port : ports) {
         wxPoint screenPos = port.GetScreenPosition(GetScreenRect());
@@ -122,15 +118,8 @@ const Port* Shape::HitTestPort(const wxPoint& pos, const Shape** outShape) const
 }
 
 ShapeHandle Shape::HitTestShape(wxPoint& mouse) {
-    for (std::vector<Shape*>::const_reverse_iterator it = childAreas.rbegin(); it != childAreas.rend(); ++it){
-        ShapeHandle ret = (*it)->HitTestShape(mouse);
-        if(ret.shape != nullptr) return ret;
-    }
-
-    // 현재 도형
     const int hs = 6; // 핸들 크기 (6x6)
 
-    // 스케일 및 오프셋을 적용한 사각형
     wxRect scaledRect(GetScreenRect());
 
     wxPoint handles[8] = {

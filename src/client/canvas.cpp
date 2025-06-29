@@ -215,7 +215,7 @@ void MainCanvas::OnLeftDown(wxMouseEvent& evt) {
     const Shape* clickedShape = nullptr;
     const Port* clickedPort = nullptr;
 
-    for(std::vector<Shape*>::const_reverse_iterator it = uppermostAreas.rbegin(); it != uppermostAreas.rend(); ++it)
+    for(std::vector<Shape*>::const_reverse_iterator it = allShapes.rbegin(); it != allShapes.rend(); ++it)
         if((clickedPort = (*it)->HitTestPort(mouse, &clickedShape))) break;
 
     if (clickedPort) {
@@ -227,7 +227,7 @@ void MainCanvas::OnLeftDown(wxMouseEvent& evt) {
     }
 
     // 2. 도형 선택 감지(도형 이동, 도형 크기 조절 작업)
-    for(std::vector<Shape*>::const_reverse_iterator it = uppermostAreas.rbegin(); it != uppermostAreas.rend(); ++it){
+    for(std::vector<Shape*>::const_reverse_iterator it = allShapes.rbegin(); it != allShapes.rend(); ++it){
         ShapeHandle sh = (*it)->HitTestShape(mouse);
         if(sh.shape != nullptr && sh.handle_type != HandleType::None){
             if (sh.handle_type == HandleType::Body){
@@ -343,7 +343,7 @@ void MainCanvas::OnMotion(wxMouseEvent& evt) {
 
 void MainCanvas::OnLeftDClick(wxMouseEvent& evt) {
     wxPoint pos = evt.GetPosition();
-    for (std::vector<Shape*>::const_reverse_iterator it = uppermostAreas.rbegin(); it != uppermostAreas.rend(); ++it) {
+    for (std::vector<Shape*>::const_reverse_iterator it = allShapes.rbegin(); it != allShapes.rend(); ++it) {
         ShapeHandle sh = (*it)->HitTestShape(pos);
         if(sh.shape != nullptr && sh.handle_type != HandleType::None){
             sh.shape->OpenPropertyDialog();
