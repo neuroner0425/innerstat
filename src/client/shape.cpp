@@ -5,22 +5,12 @@
 INNERSTAT_BEGIN_NAMESPACE
 
 Shape::Shape(int x, int y, int w, int h, MainCanvas* c, Area* p, const std::string& l)
-    : rect(wxPoint(x,y), wxSize(w, h)), canvas(c), parent(p), label(l) { }
-
-bool Shape::Contains(const wxPoint& screenPt) const {
-    wxRect scaledRect(
-        rect.x * canvas->scale + canvas->offset.x,
-        rect.y * canvas->scale + canvas->offset.y,
-        rect.width * canvas->scale,
-        rect.height * canvas->scale
-    );
-    return scaledRect.Contains(screenPt);
-}
+    : rect(wxPoint(x,y), wxSize(w, h)), canvas(c), parent(p), label(l), scale(&(canvas->scale)), offset(&(canvas->offset)) {}
 
 const Port* Shape::HitTestPort(const wxPoint& pos, const Shape** outShape) const{
     const std::vector<Port>& ports = this->GetPorts();
     for (const Port& port : ports) {
-        wxPoint screenPos = port.GetScreenPosition(rect.GetPosition(), rect.width, rect.height, canvas->scale, canvas->offset);
+        wxPoint screenPos = port.GetScreenPosition(GetScreenRect());
         wxRect hitbox(screenPos.x - 6, screenPos.y - 6, 12, 12);
         if (hitbox.Contains(pos)) {
             if (outShape) *outShape = this;
@@ -34,12 +24,7 @@ ShapeHandle Shape::HitTestShape(wxPoint& mouse){
     const int hs = 6; // 핸들 크기 (6x6)
 
     // 스케일 및 오프셋을 적용한 사각형
-    wxRect scaledRect(
-        rect.x * canvas->scale + canvas->offset.x,
-        rect.y * canvas->scale + canvas->offset.y,
-        rect.width * canvas->scale,
-        rect.height * canvas->scale
-    );
+    wxRect scaledRect(GetScreenRect());
 
     wxPoint handles[8] = {
         scaledRect.GetTopLeft(),                                                            // TopLeft

@@ -27,50 +27,30 @@ void Node::Draw(wxDC &dc) const {
     wxFont oldFont = dc.GetFont();
     double s = canvas->scale;
 
-    wxPoint screenPos(rect.x * canvas->scale + canvas->offset.x, rect.y * canvas->scale + canvas->offset.y);
-    int w = (int)(rect.width * s);
-    int h = (int)(rect.height * s);
+    wxRect screenRect(GetScreenRect());
 
     wxColour fill = overloaded ? wxColour(255, 100, 100)
                   : (active ? wxColour(180, 255, 180) : wxColour(200, 200, 200));
 
     dc.SetBrush(isSelected ? wxBrush(*wxYELLOW) : wxBrush(fill));
     dc.SetPen(wxPen(*wxBLACK, std::max(1, (int)(2 * s))));
-    dc.DrawRoundedRectangle(screenPos.x, screenPos.y, w, h, (int)(6 * s));
+    dc.DrawRoundedRectangle(screenRect, (int)(6 * s));
 
     wxFont font((int)(9 * s), wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
     dc.SetFont(font);
-    dc.DrawText(label, screenPos + wxPoint((int)(5 * s), (int)(5 * s) + h));
+    dc.DrawText(label, screenRect.GetPosition() + wxPoint((int)(5 * s), (int)(5 * s) + screenRect.GetHeight()));
     dc.SetFont(oldFont);
 
     for (const auto& port : ports) {
-        wxPoint p = port.GetScreenPosition(rect.GetPosition(), rect.width, rect.height, s, canvas->offset);
-        port.Draw(dc, p);
+        port.Draw(dc, screenRect);
     }
     
-    // if(selected){
-    //     dc.SetPen(wxPen(*wxBLACK, 1));
-    //     const int hs = 6;
-    //     wxPoint sp(pos.m_x * canvas->scale + canvas->offset.x, pos.m_y * canvas->scale + canvas->offset.y);
-    //     int w = width * canvas->scale;
-    //     int h = height * canvas->scale;
-
-    //     wxPoint handles[8] = {
-    //         {sp.x, sp.y},                   // TopLeft
-    //         {sp.x + w / 2, sp.y},           // Top
-    //         {sp.x + w, sp.y},               // TopRight
-    //         {sp.x, sp.y + h / 2},           // Left
-    //         {sp.x + w, sp.y + h / 2},       // Right
-    //         {sp.x, sp.y + h},               // BottomLeft
-    //         {sp.x + w / 2, sp.y + h},       // Bottom
-    //         {sp.x + w, sp.y + h}            // BottomRight
-    //     };
-
-    //     for (int i = 0; i < 8; ++i) {
-    //         wxRect handle(handles[i].x - hs / 2, handles[i].y - hs / 2, hs, hs);
-    //         dc.DrawRectangle(handle);
-    //     }
-    // }
+    if(isSelected){
+        dc.SetPen(wxPen(*wxBLACK, 1));
+        const int handleScale = 6;
+        wxRect handle(screenRect.GetBottomRight() .x - handleScale / 2, screenRect.GetBottomRight() .y - handleScale / 2, handleScale, handleScale);
+        dc.DrawRectangle(handle);
+    }
 }
 
 

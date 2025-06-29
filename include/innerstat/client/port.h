@@ -24,10 +24,10 @@ public:
     Port(MainCanvas* canvas, const std::string& id, const wxPoint2DDouble& relPos);
 
     /** @brief 포트의 화면 좌표 계산 및 캐시 */
-    wxPoint GetScreenPosition(const wxPoint2DDouble& shapePos, double width, double height, double scale, const wxPoint2DDouble& offset) const;
+    wxPoint GetScreenPosition(const wxRect& rect) const;
 
     /** @brief 포트를 화면에 원 형태로 그리기 */
-    void Draw(wxDC& dc, const wxPoint& screenPos) const;
+    void Draw(wxDC& dc, const wxRect& rect) const;
 };
 INNERSTAT_END_NAMESPACE
 #endif

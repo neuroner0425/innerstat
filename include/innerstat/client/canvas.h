@@ -84,7 +84,7 @@ private:
     void SelectShape(Shape* shape);
 
     /** @brief 도형 선택 해제 */
-    inline void UnSelectShape(){ if (selectedShape != nullptr) selectedShape->isSelected = false; selectedShape = nullptr; }
+    inline void UnSelectShape(){ if (selectedShape != nullptr) selectedShape->isSelected = false; selectedShape = nullptr; };
 
     /** @brief */
     void AppendAreaToTree(wxTreeItemId parentId, Area* area);

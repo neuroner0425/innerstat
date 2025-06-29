@@ -68,15 +68,15 @@ void Area::OpenAddShapeDialog() {
 
     AreaProperties* areaCast = dynamic_cast<AreaProperties*>(ret);
     if(areaCast){
-            int offsetX = rect.x + 40 + childAreas.size() * 40;
-            int offsetY = rect.y + 40;
-            Area* newArea = new Area(offsetX, offsetY, 120, 120, canvas, this, areaCast->label, areaCast->areaType);
+            int offsetX = (childAreas.size() + childNodes.size()) * 40;
+            int offsetY = 0;
+            Area* newArea = new Area(offsetX, offsetY, 40, 40, canvas, this, areaCast->label, areaCast->areaType);
             this->AddChildArea(newArea);
     }else{
             NodeProperties* nodeCast = dynamic_cast<NodeProperties*>(ret);
-            int offsetX = rect.x + 40 + childNodes.size() * 40;
-            int offsetY = rect.y + 100;
-            Node* newNode = new Node(offsetX, offsetY, 120, 120, canvas, this, nodeCast->label);
+            int offsetX = (childAreas.size() + childNodes.size()) * 40;
+            int offsetY = 0;
+            Node* newNode = new Node(offsetX, offsetY, 40, 40, canvas, this, nodeCast->label);
             this->AddChildNode(newNode);
     }
 }
@@ -84,36 +84,28 @@ void Area::OpenAddShapeDialog() {
 
 void Area::Draw(wxDC& dc) const {
     wxFont oldFont = dc.GetFont();
-    double s = canvas->scale;
 
-    wxPoint screenPos(rect.x * canvas->scale + canvas->offset.x, rect.y * canvas->scale + canvas->offset.y);
-    wxRect scaledRect(
-        screenPos.x,
-        screenPos.y,
-        rect.width * canvas->scale,
-        rect.height * canvas->scale
-    );
-    int w = (int)(rect.width * s);
-    int h = (int)(rect.height * s);
+    wxRect screenRect(GetScreenRect());
+    int w = (int)(rect.width * (*scale));
+    int h = (int)(rect.height * (*scale));
 
     dc.SetBrush(isSelected ? wxColour(70,130,255) : wxColour(186, 225, 255));
-    dc.SetPen(wxPen(*wxBLACK, std::max(1, (int)(2 * s))));
-    dc.DrawRoundedRectangle(scaledRect, (int)(10 * s));
+    dc.SetPen(wxPen(*wxBLACK, std::max(1, (int)(2 * (*scale)))));
+    dc.DrawRoundedRectangle(screenRect, (int)(10 * (*scale)));
     
-    wxFont font((int)(9 * s), wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
+    wxFont font((int)(9 * (*scale)), wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
     dc.SetFont(font);
-    dc.DrawText(label, screenPos + wxPoint((int)(5 * s), (int)(5 * s) + h));
+    dc.DrawText(label, screenRect.GetPosition() + wxPoint((int)(5 * (*scale)), (int)(5 * (*scale)) + h));
     dc.SetFont(oldFont);
 
     for (const Port& port : ports) {
-        wxPoint p = port.GetScreenPosition(rect.GetPosition(), rect.width, rect.height, s, canvas->offset);
-        port.Draw(dc, p);
+        port.Draw(dc, screenRect);
     }
     
     if(isSelected){
         dc.SetPen(wxPen(*wxBLACK, 1));
         const int handleScale = 6;
-        wxRect handle(scaledRect.GetBottomRight() .x - handleScale / 2, scaledRect.GetBottomRight() .y - handleScale / 2, handleScale, handleScale);
+        wxRect handle(screenRect.GetBottomRight() .x - handleScale / 2, screenRect.GetBottomRight() .y - handleScale / 2, handleScale, handleScale);
         dc.DrawRectangle(handle);
     }
 }

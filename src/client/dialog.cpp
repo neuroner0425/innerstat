@@ -127,7 +127,7 @@ AreaProperties* ShowAreaPropertyDialog(wxWindow* parent, Area* area) {
     wxSpinCtrl *portCount = new wxSpinCtrl(&dlg, wxID_ANY);
     wxButton *addShapeBtn = new wxButton(&dlg, wxID_ANY, "Add Shape");
 
-    typeCtrl->SetSelection(static_cast<int>(area->type));
+    typeCtrl->SetSelection(static_cast<int>(area->GetType()));
     portCount->SetRange(0, 10);
     portCount->SetValue(area->ports.size());
 

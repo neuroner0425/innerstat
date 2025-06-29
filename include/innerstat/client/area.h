@@ -11,6 +11,9 @@
 #include <string>
 #include <vector>
 
+#define REVERSE_FOR_AREA(it, container) \
+    for (std::vector<innerstat::v1::Area*>::const_reverse_iterator it = (container).rbegin(); it != (container).rend(); ++it)
+
 INNERSTAT_BEGIN_NAMESPACE
 
 class MainCanvas;
@@ -34,6 +37,8 @@ public:
 
     /** @brief 포트 수를 설정하고 재배치 */
     void SetPortCount(int count);
+
+    inline AreaType GetType() const { return type; }
 
     /** @brief 포트 목록 반환 */
     const std::vector<Port>& GetPorts() const override { return ports; }
@@ -67,7 +72,7 @@ public:
 
     /** @brief Area의 종류를 std::string으로 반환*/
     inline const std::string getTypeStr() const{
-        switch(type){
+        switch(GetType()){
             case AreaType::OS : return "OS";
             case AreaType::VM : return "VM";
             case AreaType::Container : return "Container";
@@ -81,6 +86,15 @@ public:
 
     /** @brief 자식 추가 다이얼로그 열기 */
     void OpenAddShapeDialog();
+
+    /** @brief 도형의 위치 변화를 설정 */
+    virtual inline void SetDeltaPosition(const wxPoint& pos) override {
+        for (auto area : GetSubAreas())
+            area->SetDeltaPosition(pos);
+        for (auto node : GetSubAreas())
+            node->SetDeltaPosition(pos);
+        Shape::SetDeltaPosition(pos);
+    }
 };
 INNERSTAT_END_NAMESPACE
 

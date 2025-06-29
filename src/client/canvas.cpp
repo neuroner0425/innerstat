@@ -115,7 +115,13 @@ void MainCanvas::OnPaint(wxPaintEvent&) {
     // dragging 및 resizing 미리보기
     if (selectedShape && (action == UserAction::Dragging || action == UserAction::Resizing)) {
         wxRect rect(previewRect);
-        wxPoint screenPos(rect.x * scale + offset.x, rect.y * scale + offset.y);
+        // previewRect는 부모 기준
+        wxPoint parentScreenPos(0, 0);
+        if (selectedShape->parent) {
+            parentScreenPos = selectedShape->parent->GetGridPosition() + wxPoint(GRID_SIZE / 2, GRID_SIZE / 2);
+        }
+        wxPoint screenPos((rect.x + parentScreenPos.x) * scale + offset.x,
+                        (rect.y + parentScreenPos.y) * scale + offset.y);
         int w = (int)(rect.width * scale);
         int h = (int)(rect.height * scale);
 
@@ -133,9 +139,8 @@ void MainCanvas::OnPaint(wxPaintEvent&) {
 
     // 연결선 미리보기
     if (action == UserAction::Connecting && pendingPort) {
-        wxRect pendingShapePosition(pendingShape->rect);
-        wxPoint start = pendingPort->GetScreenPosition(
-            pendingShapePosition.GetPosition(), pendingShapePosition.width, pendingShapePosition.height, scale, offset);
+        wxRect pendingShapePosition(pendingShape->GetScreenRect());
+        wxPoint start = pendingPort->GetScreenPosition(pendingShapePosition);
         wxPoint end = actionMousePos;
         dc.SetPen(wxPen(*wxBLACK, (int)(2 * scale), wxPENSTYLE_DOT));
         dc.DrawLine(start, end);
@@ -217,7 +222,7 @@ void MainCanvas::OnLeftDown(wxMouseEvent& evt) {
     if (clickedPort) {
         pendingPort = clickedPort;
         pendingShape = clickedShape;
-        action = UserAction::Dragging;
+        action = UserAction::Connecting;
         CaptureMouse();
         return;
     }

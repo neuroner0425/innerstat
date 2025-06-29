@@ -7,10 +7,8 @@ void Connection::Draw(wxDC& dc, double scale, const wxPoint2DDouble& offset) con
     if (!from || !to)
         return;
 
-    wxRect fromShapeRect(fromShape->rect);
-    wxRect toShapeRect(toShape->rect);
-    wxPoint a = from->GetScreenPosition(fromShapeRect.GetPosition(), fromShapeRect.width, fromShapeRect.height, scale, offset);
-    wxPoint b = to->GetScreenPosition(toShapeRect.GetPosition(), toShapeRect.width, toShapeRect.height, scale, offset);
+    wxPoint a = from->GetScreenPosition(fromShape->GetScreenRect());
+    wxPoint b = to->GetScreenPosition(toShape->GetScreenRect());
 
     dc.SetPen(wxPen(*wxBLUE, (int)(2 * scale)));
 

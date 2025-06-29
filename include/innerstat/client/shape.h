@@ -17,11 +17,16 @@ class Shape {
 public:
     wxRect rect;
     MainCanvas* canvas = nullptr;
-    Area* parent = nullptr;
+    Shape* parent = nullptr;
     std::string label;
     
     bool isSelected = false;
+
+protected:
+    double* scale;
+    wxPoint* offset;
     
+public:
     /** @brief 생성자 */
     Shape(int x, int y, int w, int h, MainCanvas* canvas, Area* parent, const std::string& label);
 
@@ -35,7 +40,7 @@ public:
     virtual void OpenPropertyDialog() { }
 
     /** @brief 주어진 화면 좌표가 도형 내부인지 검사 */
-    virtual bool Contains(const wxPoint& screenPt) const;
+    virtual bool Contains(const wxPoint& screenPt) const { return GetScreenRect().Contains(screenPt); }
 
     /** @brief 도형을 직렬화하여 저장 가능한 문자열로 반환 */
     virtual std::string Serialize() const = 0;
@@ -52,6 +57,9 @@ public:
     /** @brief 도형의 위치를 설정 */
     inline void SetPosition(const wxPoint& pos) { rect.SetPosition(pos); }
 
+    /** @brief 도형의 위치 변화를 설정 */
+    virtual inline void SetDeltaPosition(const wxPoint& pos) { rect.SetPosition(pos + rect.GetPosition()); }
+
     /** @brief 도형의 위치를 반환 */
     inline wxPoint GetPosition() const { return rect.GetPosition(); }
 
@@ -60,6 +68,15 @@ public:
 
     /** @brief 도형의 크기를 반환 */
     inline wxSize GetSize() const { return rect.GetSize(); }
+
+    inline wxPoint GetGridPosition() const { return rect.GetPosition() + (parent ? (parent->GetGridPosition() + wxPoint(GRID_SIZE/2, GRID_SIZE/2)) : wxPoint()); }
+
+    inline wxPoint GetScreenPosition() const {
+        wxPoint pos = GetGridPosition();
+        return wxPoint(pos.x * (*scale) + (*offset).x, pos.y * (*scale) + (*offset).y);
+    }
+
+    inline wxRect GetScreenRect() const { wxPoint screenPos = GetScreenPosition(); return wxRect(screenPos.x, screenPos.y, rect.width * (*scale), rect.height * (*scale)); }
 };
 INNERSTAT_END_NAMESPACE
 #endif
