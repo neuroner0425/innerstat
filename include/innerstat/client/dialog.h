@@ -8,7 +8,7 @@
 
 INNERSTAT_BEGIN_NAMESPACE
 
-class Area;
+class Shape;
 
 class ShapeProperties {
 public:
@@ -21,9 +21,9 @@ public:
 
 class AreaProperties: public ShapeProperties {
 public:
-    AreaProperties(std::string label, AreaType areaType, int portCount)
+    AreaProperties(std::string label, ShapeType areaType, int portCount)
         : ShapeProperties(label, portCount), areaType(areaType){};
-    AreaType areaType;
+    ShapeType areaType;
 };
 
 class NodeProperties: public ShapeProperties {
@@ -32,8 +32,7 @@ public:
         : ShapeProperties(label, portCount){};
 };
 
-AreaProperties* ShowAddAreaDialog(wxWindow* parent);
-ShapeProperties* ShowAddShapeDialog(wxWindow* parent);
-AreaProperties* ShowAreaPropertyDialog(wxWindow* parent, Area* area);
+AreaProperties* ShowAddAreaDialog(wxWindow* parent, int defaultType);
+AreaProperties* ShowAreaPropertyDialog(wxWindow* parent, Shape* area);
 INNERSTAT_END_NAMESPACE
 #endif

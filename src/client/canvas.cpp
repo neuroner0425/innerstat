@@ -13,7 +13,6 @@
 
 #include "innerstat/client/canvas.h"
 #include "innerstat/client/shape.h"
-#include "innerstat/client/area.h"
 #include "innerstat/client/port.h"
 #include "innerstat/client/connection.h"
 #include "innerstat/client/main_frame.h"
@@ -37,13 +36,13 @@ MainCanvas::MainCanvas(wxWindow* parent, MainFrame* frame)
 }
 
 MainCanvas::~MainCanvas() {
-    for (std::vector<Area*>::const_reverse_iterator it = uppermostAreas.rbegin(); it != uppermostAreas.rend(); ++it)
+    for (std::vector<Shape*>::const_reverse_iterator it = uppermostAreas.rbegin(); it != uppermostAreas.rend(); ++it)
         delete (*it);
     uppermostAreas.clear();
 }
 
-void MainCanvas::AddNewArea(const std::string& label, const AreaType areaType) {
-    uppermostAreas.push_back(new Area(120, 120 + uppermostAreas.size() * 40, 120, 120, this, nullptr, label, areaType));
+void MainCanvas::AddNewArea(const std::string& label, const ShapeType areaType) {
+    uppermostAreas.push_back(new Shape(120, 120 + uppermostAreas.size() * 40, 120, 120, this, nullptr, label, areaType));
     
     UpdateAllShapesList();
     RefreshTree();
@@ -65,7 +64,7 @@ void MainCanvas::RefreshTree() {
     wxTreeItemId root = frame->shapeTree->AddRoot("Systems");
 
     for (size_t i = 0; i < uppermostAreas.size(); ++i) {
-        if (Area* area = uppermostAreas[i]) {
+        if (Shape* area = uppermostAreas[i]) {
             AppendAreaToTree(root, area);
         }
     }
@@ -216,7 +215,7 @@ void MainCanvas::OnLeftDown(wxMouseEvent& evt) {
     const Shape* clickedShape = nullptr;
     const Port* clickedPort = nullptr;
 
-    for(std::vector<Area*>::const_reverse_iterator it = uppermostAreas.rbegin(); it != uppermostAreas.rend(); ++it)
+    for(std::vector<Shape*>::const_reverse_iterator it = uppermostAreas.rbegin(); it != uppermostAreas.rend(); ++it)
         if((clickedPort = (*it)->HitTestPort(mouse, &clickedShape))) break;
 
     if (clickedPort) {
@@ -228,7 +227,7 @@ void MainCanvas::OnLeftDown(wxMouseEvent& evt) {
     }
 
     // 2. 도형 선택 감지(도형 이동, 도형 크기 조절 작업)
-    for(std::vector<Area*>::const_reverse_iterator it = uppermostAreas.rbegin(); it != uppermostAreas.rend(); ++it){
+    for(std::vector<Shape*>::const_reverse_iterator it = uppermostAreas.rbegin(); it != uppermostAreas.rend(); ++it){
         ShapeHandle sh = (*it)->HitTestShape(mouse);
         if(sh.shape != nullptr && sh.handle_type != HandleType::None){
             if (sh.handle_type == HandleType::Body){
@@ -344,7 +343,7 @@ void MainCanvas::OnMotion(wxMouseEvent& evt) {
 
 void MainCanvas::OnLeftDClick(wxMouseEvent& evt) {
     wxPoint pos = evt.GetPosition();
-    for (std::vector<Area*>::const_reverse_iterator it = uppermostAreas.rbegin(); it != uppermostAreas.rend(); ++it) {
+    for (std::vector<Shape*>::const_reverse_iterator it = uppermostAreas.rbegin(); it != uppermostAreas.rend(); ++it) {
         ShapeHandle sh = (*it)->HitTestShape(pos);
         if(sh.shape != nullptr && sh.handle_type != HandleType::None){
             sh.shape->OpenPropertyDialog();
@@ -375,18 +374,13 @@ void MainCanvas::DraggingShape(Shape* shape, wxPoint& mouse){
     Refresh();
 }
 
-void MainCanvas::AppendAreaToTree(wxTreeItemId parentId, Area* area) {
-    wxString label = wxString::Format("%s [%s]", area->label, area->getTypeStr());
+void MainCanvas::AppendAreaToTree(wxTreeItemId parentId, Shape* area) {
+    wxString label = wxString::Format("%s [%s]", area->label, area->GetTypeString());
     wxTreeItemId areaId = frame->shapeTree->AppendItem(parentId, label);
     shapeMap[areaId] = area;
 
-    for (auto* sub : area->GetSubAreas()) {
+    for (auto* sub : area->GetChildAreas()) {
         AppendAreaToTree(areaId, sub);
-    }
-    for (auto* node : area->GetNodes()) {
-        wxString nlabel = wxString::Format("%s [PS]", node->label);
-        wxTreeItemId nid = frame->shapeTree->AppendItem(areaId, nlabel);
-        shapeMap[nid] = node;
     }
 }
 
@@ -428,15 +422,13 @@ void MainCanvas::OnFirstIdle(wxIdleEvent& evt) {
 void MainCanvas::UpdateAllShapesList() {
     allShapes.clear();
 
-    std::function<void(Area*)> recurse = [&](Area* area) {
+    std::function<void(Shape*)> recurse = [&](Shape* area) {
         allShapes.push_back(area);
-        for (Area* sub : area->GetSubAreas())
+        for (Shape* sub : area->GetChildAreas())
             recurse(sub);
-        for (Node* node : area->GetNodes())
-            allShapes.push_back(node);
     };
 
-    for (Area* a : uppermostAreas) {
+    for (Shape* a : uppermostAreas) {
         recurse(a);
     }
 }

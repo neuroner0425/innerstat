@@ -8,7 +8,7 @@
 #include <wx/wx.h>
 #include <wx/treectrl.h>
 #include <wx/splitter.h>
-#include "innerstat/client/Canvas.h"
+#include "innerstat/client/canvas.h"
 #include "innerstat/client/dialog.h"
 
 INNERSTAT_BEGIN_NAMESPACE
@@ -18,7 +18,7 @@ private:
     MainCanvas *canvas = nullptr;
 
     void addTopLevelArea(){
-        AreaProperties* area = ShowAddAreaDialog(this);
+        AreaProperties* area = ShowAddAreaDialog(this, 2);
         if (area != nullptr) {
             canvas->AddNewArea(area->label, area->areaType);
             delete area;
@@ -52,7 +52,7 @@ public:
         wxPanel *leftPanel = new wxPanel(splitter);
         wxBoxSizer *leftSizer = new wxBoxSizer(wxVERTICAL);
         shapeTree = new wxTreeCtrl(leftPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTR_HAS_BUTTONS);
-        wxButton *addAreaBtn = new wxButton(leftPanel, wxID_ANY, "Add Area");
+        wxButton *addAreaBtn = new wxButton(leftPanel, wxID_ANY, "Add Shape");
 
         leftSizer->Add(addAreaBtn, 0, wxEXPAND | wxBOTTOM, 3);
         leftSizer->Add(shapeTree, 1, wxEXPAND | wxBOTTOM, 5);

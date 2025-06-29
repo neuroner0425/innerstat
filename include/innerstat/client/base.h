@@ -40,8 +40,9 @@ struct ShapeHandle {
 };
 
 // Area의 논리적 타입
-enum class AreaType {
+enum class ShapeType {
   None = 0,
+  PS,
   OS,
   VM,
   Container,

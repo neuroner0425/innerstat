@@ -11,11 +11,11 @@
 #include <vector>
 #include <map>
 
-#include "innerstat/client/shape.h" // Shape 객체의 isSelected 변수를 접근하기 때문에 include
+#include "innerstat/client/shape.h"
 
 INNERSTAT_BEGIN_NAMESPACE
 
-class Area;
+class Shape;
 class Connection;
 class MainFrame;
 class Port;
@@ -34,7 +34,7 @@ private:
     std::vector<Shape*> allShapes;
 
     std::vector<Connection> connections;
-    std::vector<Area*> uppermostAreas;
+    std::vector<Shape*> uppermostAreas;
 
     bool spacePressed = false;
     bool middleMouseDown = false;
@@ -61,8 +61,8 @@ public:
     /** @brief MainCanvas 소멸자 - Shape 메모리 정리 */
     ~MainCanvas();
 
-    /** @brief 최상단 Area 추가 */
-    void AddNewArea(const std::string& label, const AreaType areaType);
+    /** @brief 최상단 Shape 추가 */
+    void AddNewArea(const std::string& label, const ShapeType areaType);
 
     /** @brief 리스트 UI를 도형 목록과 동기화 */
     void RefreshTree();
@@ -87,7 +87,7 @@ private:
     inline void UnSelectShape(){ if (selectedShape != nullptr) selectedShape->isSelected = false; selectedShape = nullptr; };
 
     /** @brief */
-    void AppendAreaToTree(wxTreeItemId parentId, Area* area);
+    void AppendAreaToTree(wxTreeItemId parentId, Shape* area);
 
     /** @brief */
     void OnFirstIdle(wxIdleEvent& evt);

@@ -7,9 +7,10 @@ Port::Port(MainCanvas* canvas, const std::string& id, const wxPoint2DDouble& rel
     : canvas(canvas), id(id), relativePos(relPos) {}
 
 wxPoint Port::GetScreenPosition(const wxRect& rect) const{
-    wxPoint screenPos(rect.GetPosition());
-    screenPos.x += rect.GetWidth() / 2;
-    return screenPos;
+    return wxPoint(
+        rect.GetX() + int(rect.GetWidth() * relativePos.m_x),
+        rect.GetY() + int(rect.GetHeight() * relativePos.m_y)
+    );
 }
 
 void Port::Draw(wxDC& dc, const wxRect& rect) const{
