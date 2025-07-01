@@ -25,7 +25,6 @@
 #include <wxbf/system_buttons.h>
 #include <wxbf/window_gripper_msw.h>
 
-
 #include <memory>
 
 class MyApp : public wxApp
