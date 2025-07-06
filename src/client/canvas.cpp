@@ -15,6 +15,7 @@
 #include "innerstat/client/shape.h"
 #include "innerstat/client/port.h"
 #include "innerstat/client/connection.h"
+#include "innerstat/client/color_manager.h"
 #include "innerstat/client/main_frame.h"
 
 INNERSTAT_BEGIN_NAMESPACE
@@ -93,7 +94,7 @@ void MainCanvas::OnPaint(wxPaintEvent&) {
     
     // 1. 그리드
     wxSize sz = GetClientSize();
-    dc.SetPen(wxPen(wxColour(230,230,230)));
+    dc.SetPen(wxPen(C_CLIENT_GRID));
     double mid_x = std::fmod(offset.x, GRID_SIZE * scale);
     double mid_y = std::fmod(offset.y, GRID_SIZE * scale);
     dc.DrawLine(mid_x, 0, mid_x, sz.GetHeight());
@@ -149,14 +150,15 @@ void MainCanvas::OnPaint(wxPaintEvent&) {
     if(isdebug){
         std::string actionStr("Unknown");
         switch (action) {
-            case UserAction::None: actionStr =  "None"; break;
-            case UserAction::Connecting: actionStr =  "connecting"; break;
-            case UserAction::Dragging: actionStr =  "dragging"; break;
-            case UserAction::Resizing: actionStr =  "resizing"; break;
-            case UserAction::Panning: actionStr =  "panning"; break;
+            case UserAction::None: actionStr = "None"; break;
+            case UserAction::Connecting: actionStr = "connecting"; break;
+            case UserAction::Dragging: actionStr = "dragging"; break;
+            case UserAction::Resizing: actionStr = "resizing"; break;
+            case UserAction::Panning: actionStr = "panning"; break;
         }
         dc.SetBrush(wxBrush(*wxRED));
-        dc.SetPen(*wxBLACK_PEN);
+        dc.SetPen(wxPen(C_CLIENT_GRID));
+        dc.SetTextForeground(C_CLIENT_FONT);
         dc.DrawCircle(wxPoint((int)offset.x, (int)offset.y), (int)(scale * 8));
         dc.DrawText(wxString::Format("Scale: %.2f  ||  %s", scale, actionStr), wxPoint(0, 0));
         if(action != UserAction::None){

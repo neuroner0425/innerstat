@@ -8,6 +8,9 @@
 #include <wxbf/window_gripper_msw.h>
 #include <memory>
 
+#include "innerstat/client/color_manager.h"
+
+
 class MyApp : public wxApp {
 public:
     bool OnInit() override;
@@ -22,7 +25,6 @@ protected:
 private:
     std::unique_ptr<wxWindowGripper> m_gripper;
     wxSystemButtonsBase* m_buttons;
-    wxSearchCtrl* m_searchBox;
     wxPanel* m_menuBar;
     wxPanel* m_leftToolbar;
     wxPanel* m_content;
@@ -31,6 +33,10 @@ private:
 
     void OnPaint(wxPaintEvent& event);
     void OnSize(wxSizeEvent& event);
+    void SetUpGUI();
+    wxButton* makeMenuBtn(const wxString& label, const wxArrayString subItems);
+    wxButton* makeToolBtn(const wxString& label);
+    void SetSystemButtonColor();
 };
 
 wxIMPLEMENT_APP(MyApp);
@@ -47,47 +53,28 @@ MyFrame::MyFrame(const wxString& title, const wxPoint& pos, const wxSize& size)
     : wxBorderlessFrame(nullptr, wxID_ANY, title, pos, size),
       m_gripper(wxWindowGripper::Create())
 {
+    
+    SetUpGUI();
+
+    Bind(wxEVT_PAINT, &MyFrame::OnPaint, this);
+    Bind(wxEVT_SIZE, &MyFrame::OnSize, this);
+
+    wxSizeEvent dummy;
+    OnSize(dummy);
+}
+
+void MyFrame::SetUpGUI(){
     m_buttons = wxSystemButtonsFactory::CreateSystemButtons(this);
+    m_buttons->SetButtonSize(wxSize(46, 35));
     m_buttons->UpdateState();
+    SetSystemButtonColor();
+
     m_titlebarHeight = m_buttons->GetTotalSize().y;
-    if (m_titlebarHeight < 28) m_titlebarHeight = 35;
 
-    m_searchBox = new wxSearchCtrl(this, wxID_ANY, "", wxPoint(), wxSize(320, 30));
-    m_searchBox->SetHint("ineerStat");
-
-    m_menuBar = new wxPanel(this, wxID_ANY, wxPoint(), wxDefaultSize);
-    m_menuBar->SetBackgroundColour(wxColour(37, 37, 38));
+    m_menuBar = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxDefaultSize);
+    m_menuBar->SetBackgroundColour(C_TITLE_BAR_BACKGROUND);
 
     wxBoxSizer* menuSizer = new wxBoxSizer(wxHORIZONTAL);
-
-    auto makeMenuBtn = [this](const wxString& label, const std::vector<wxString>& subItems) {
-        wxButton* btn = new wxButton(m_menuBar, wxID_ANY, label, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
-        btn->SetForegroundColour(wxColour(225,225,225));
-        btn->SetBackgroundColour(m_menuBar->GetBackgroundColour());
-        btn->SetWindowStyleFlag(wxBORDER_NONE | wxTRANSPARENT_WINDOW);
-        btn->SetCursor(wxCursor(wxCURSOR_HAND));
-        btn->Fit();
-
-        btn->Bind(wxEVT_ENTER_WINDOW, [btn](wxMouseEvent&) {
-            btn->SetBackgroundColour(wxColour(255,255,255,24));
-            btn->Refresh();
-        });
-        btn->Bind(wxEVT_LEAVE_WINDOW, [btn, this](wxMouseEvent&) {
-            btn->SetBackgroundColour(btn->GetParent()->GetBackgroundColour());
-            btn->Refresh();
-        });
-
-        btn->Bind(wxEVT_BUTTON, [this, btn, subItems](wxCommandEvent&) {
-            wxMenu popup;
-            for(const auto& text : subItems) {
-                popup.Append(wxID_ANY, text);
-            }
-            wxPoint btnScreen = btn->ClientToScreen(wxPoint(0, btn->GetSize().y));
-            PopupMenu(&popup, ScreenToClient(btnScreen));
-        });
-
-        return btn;
-    };
 
     wxButton* btnFile = makeMenuBtn(L"파일(F)", {L"새 파일", L"열기", L"저장", L"다른 이름으로 저장"});
     wxButton* btnEdit = makeMenuBtn(L"편집(E)", {L"실행 취소", L"다시 실행", L"복사", L"붙여넣기"});
@@ -98,13 +85,14 @@ MyFrame::MyFrame(const wxString& title, const wxPoint& pos, const wxSize& size)
     menuSizer->Add(btnSelect, 0, wxLEFT | wxALIGN_CENTER_VERTICAL);
     m_menuBar->SetSizer(menuSizer);
 
-    m_leftToolbar = new wxPanel(this, wxID_ANY, wxPoint(), wxSize(m_leftbarWidth, 100));
-    m_leftToolbar->SetBackgroundColour(wxColour(37, 37, 38));
+    m_leftToolbar = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(m_leftbarWidth, 100));
+    m_leftToolbar->SetBackgroundColour(C_TOOL_BAR_BACKGROUND);
     wxBoxSizer* leftSizer = new wxBoxSizer(wxVERTICAL);
 
-    wxButton* btn1 = new wxButton(m_leftToolbar, wxID_ANY, "F", wxDefaultPosition, wxSize(40, 40));
-    wxButton* btn2 = new wxButton(m_leftToolbar, wxID_ANY, "S", wxDefaultPosition, wxSize(40, 40));
-    wxButton* btn3 = new wxButton(m_leftToolbar, wxID_ANY, "G", wxDefaultPosition, wxSize(40, 40));
+    wxButton* btn1 = makeToolBtn("F");
+    wxButton* btn2 = makeToolBtn("S");
+    wxButton* btn3 = makeToolBtn("G");
+
     leftSizer->AddSpacer(10);
     leftSizer->Add(btn1, 0, wxALIGN_CENTER_HORIZONTAL | wxBOTTOM, 4);
     leftSizer->Add(btn2, 0, wxALIGN_CENTER_HORIZONTAL | wxBOTTOM, 4);
@@ -112,26 +100,45 @@ MyFrame::MyFrame(const wxString& title, const wxPoint& pos, const wxSize& size)
     leftSizer->AddStretchSpacer();
     m_leftToolbar->SetSizer(leftSizer);
 
-    m_content = new wxPanel(this, wxID_ANY, wxPoint(), wxSize(700, 600));
-    m_content->SetBackgroundColour(wxColour(30, 30, 30));
+    m_content = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(700, 600));
+    m_content->SetBackgroundColour(C_CLIENT_BACKGROUND);
+}
 
-    Bind(wxEVT_PAINT, &MyFrame::OnPaint, this);
-    Bind(wxEVT_SIZE, &MyFrame::OnSize, this);
+void MyFrame::SetSystemButtonColor(){
+    auto setButtonColor = [this](int button, int state, int kind, const wxColour& color) {
+        for (size_t buttonKind = (button < 0 ? 0 : button); buttonKind <= (button < 0 ? 3 : button); ++buttonKind) {
+            for (size_t stateKind = (state < 0 ? 0 : state); stateKind <= (state < 0 ? 4 : state); ++stateKind) {
+                m_buttons->SetColourTableEntry(
+                    static_cast<wxSystemButton>(buttonKind),
+                    static_cast<wxSystemButtonState>(stateKind),
+                    static_cast<wxSystemButtonColourKind>(kind),
+                    color);
+            }
+        }
+    };
 
-    wxSizeEvent dummy;
-    OnSize(dummy);
+    setButtonColor(-1, -1, wxSystemButtonColourKind::wxSB_COLOUR_BACKGROUND, C_TITLE_BAR_BACKGROUND);
+    setButtonColor(-1, -1, wxSystemButtonColourKind::wxSB_COLOUR_FOREGROUND, C_TITLE_BAR_FOREGROUND);
+
+    setButtonColor(-1, wxSystemButtonState::wxSB_STATE_HOVER, wxSystemButtonColourKind::wxSB_COLOUR_BACKGROUND, C_TITLE_BAR_HOVER_BACKGROUND);
+    setButtonColor(-1, wxSystemButtonState::wxSB_STATE_PRESSED, wxSystemButtonColourKind::wxSB_COLOUR_BACKGROUND, C_TITLE_BAR_PRESSED_BACKGROUND);
+
+    
+    setButtonColor(wxSystemButton::wxSB_CLOSE, wxSystemButtonState::wxSB_STATE_HOVER, wxSystemButtonColourKind::wxSB_COLOUR_BACKGROUND, C_TITLE_BAR_CLOSE_HOVER_BACKGROUND);
+    setButtonColor(wxSystemButton::wxSB_CLOSE, wxSystemButtonState::wxSB_STATE_PRESSED, wxSystemButtonColourKind::wxSB_COLOUR_BACKGROUND, C_TITLE_BAR_CLOSE_PRESSED_BACKGROUND);
+
+    setButtonColor(-1, wxSystemButtonState::wxSB_STATE_INACTIVE, wxSystemButtonColourKind::wxSB_COLOUR_BACKGROUND, C_TITLE_BAR_INACTIVE_BACKGROUND);
+    setButtonColor(-1, wxSystemButtonState::wxSB_STATE_INACTIVE, wxSystemButtonColourKind::wxSB_COLOUR_FOREGROUND, C_TITLE_BAR_INACTIVE_FOREGROUND);
+    
+    m_buttons->UpdateState();
 }
 
 void MyFrame::OnPaint(wxPaintEvent& event)
 {
     wxPaintDC dc(this);
-    wxColour barColor(37, 37, 38);
-    dc.SetBrush(barColor);
-    dc.SetPen(barColor);
+    dc.SetBrush(C_TITLE_BAR_BACKGROUND);
+    dc.SetPen(C_TITLE_BAR_BACKGROUND);
     dc.DrawRectangle(0, 0, GetClientSize().x, m_titlebarHeight);
-
-    dc.SetPen(wxColour(50, 50, 50));
-    dc.DrawLine(0, m_titlebarHeight - 1, GetClientSize().x, m_titlebarHeight - 1);
 
     event.Skip();
 }
@@ -141,10 +148,9 @@ void MyFrame::OnSize(wxSizeEvent& event)
 {
     wxSize sz = GetClientSize();
 
-    m_menuBar->SetSize(m_leftbarWidth, 0, 220, m_titlebarHeight);
+    m_menuBar->SetSize(20, 0, 220, m_titlebarHeight);
 
     int searchW = 320, searchH = 30;
-    m_searchBox->SetSize((sz.x - searchW) / 2, 4, searchW, searchH);
 
     m_leftToolbar->SetSize(0, m_titlebarHeight, m_leftbarWidth, sz.y - m_titlebarHeight);
 
@@ -152,3 +158,55 @@ void MyFrame::OnSize(wxSizeEvent& event)
 
     event.Skip();
 }
+
+wxButton* MyFrame::makeMenuBtn(const wxString& label, const wxArrayString subItems) {
+    wxButton* btn = new wxButton(m_menuBar, wxID_ANY, label, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
+    btn->SetBackgroundColour(C_TITLE_BAR_BACKGROUND);
+    btn->SetForegroundColour(C_TITLE_BAR_FOREGROUND);
+    btn->SetWindowStyleFlag(wxBORDER_NONE | wxTRANSPARENT_WINDOW);
+
+    int textWidth, textHeight;
+    m_menuBar->GetTextExtent(label, &textWidth, &textHeight);
+    int padding = 20;
+    btn->SetMinSize(wxSize(textWidth + padding, -1));
+
+    btn->Bind(wxEVT_ENTER_WINDOW, [btn](wxMouseEvent&) {
+        btn->SetBackgroundColour(C_TITLE_BAR_HOVER_BACKGROUND);
+        btn->Refresh();
+    });
+    btn->Bind(wxEVT_LEAVE_WINDOW, [btn, this](wxMouseEvent&) {
+        btn->SetBackgroundColour(C_TITLE_BAR_BACKGROUND);
+        btn->Refresh();
+    });
+
+    btn->Bind(wxEVT_BUTTON, [this, btn, subItems](wxCommandEvent&) {
+        wxMenu popup;
+        for(const auto& text : subItems) {
+            popup.Append(wxID_ANY, text);
+        }
+        wxPoint btnScreen = btn->ClientToScreen(wxPoint(0, btn->GetSize().y));
+        PopupMenu(&popup, ScreenToClient(btnScreen));
+    });
+
+    return btn;
+};
+
+
+wxButton* MyFrame::makeToolBtn(const wxString& label) {
+    wxButton* btn = new wxButton(m_leftToolbar, wxID_ANY, label, wxDefaultPosition, wxSize(40, 40));
+    btn->SetBackgroundColour(C_TOOL_BAR_BACKGROUND);
+    btn->SetForegroundColour(C_TOOL_BAR_FOREGROUND);
+    btn->SetWindowStyleFlag(wxBORDER_NONE | wxTRANSPARENT_WINDOW);
+    btn->SetCursor(wxCursor(wxCURSOR_HAND));
+
+    btn->Bind(wxEVT_ENTER_WINDOW, [btn](wxMouseEvent&) {
+        btn->SetForegroundColour(C_TOOL_BAR_HOVER_FOREGROUND);
+        btn->Refresh();
+    });
+    btn->Bind(wxEVT_LEAVE_WINDOW, [btn, this](wxMouseEvent&) {
+        btn->SetForegroundColour(C_TOOL_BAR_FOREGROUND);
+        btn->Refresh();
+    });
+
+    return btn;
+};
