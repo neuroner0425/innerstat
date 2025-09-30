@@ -11,6 +11,8 @@
 #include <wxbf/system_buttons_fallback.h>
 
 #include <wx/mstream.h>
+#include <wx/image.h>
+#include <wx/imagpng.h>
 
 const wxCoord wxFallbackSystemButtons::BITMAP_DIMENSION = 64;
 
@@ -18,6 +20,10 @@ wxFallbackSystemButtons::wxFallbackSystemButtons(wxBorderlessFrameBase* frame,
     const void* bitmapData, size_t size)
     : wxSystemButtonsBase(frame)
 {
+    // Ensure PNG handler is registered (avoid adding all to reduce duplicates)
+    if (!wxImage::FindHandler(wxBITMAP_TYPE_PNG)) {
+        wxImage::AddHandler(new wxPNGHandler());
+    }
     wxMemoryInputStream mis(bitmapData, size);
     m_iconImg.LoadFile(mis, wxBITMAP_TYPE_PNG);
 }

@@ -27,9 +27,14 @@ typedef wxBorderlessFrameMSW wxBorderlessFrame;
 #include "borderless_frame_gtk.h"
 typedef wxBorderlessFrameGTK wxBorderlessFrame;
 
+#elif defined(__WXOSX__)
+
+#include "borderless_frame_osx.h"
+typedef wxBorderlessFrameOSX wxBorderlessFrame;
+
 #else
 
-#error "This implementation is currently only available for MSW and GTK"
+#error "This implementation is currently only available for MSW, GTK and macOS (Cocoa)"
 
 #endif
 

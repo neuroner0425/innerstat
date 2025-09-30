@@ -11,7 +11,7 @@
 #include <wx/srchctrl.h>
 #include <wxbf/borderless_frame.h>
 #include <wxbf/system_buttons.h>
-#include <wxbf/window_gripper_msw.h>
+#include <wxbf/window_gripper.h>
 
 #include "innerstat/client/canvas.h"
 #include "innerstat/client/dialog.h"

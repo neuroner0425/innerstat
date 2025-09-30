@@ -13,6 +13,8 @@
 #include <wxbf/window_gripper_msw.h>
 #elif defined(__WXGTK__)
 #include <wxbf/window_gripper_gtk.h>
+#elif defined(__WXOSX__)
+#include <wxbf/window_gripper_osx.h>
 #endif
 
 wxWindowGripper* wxWindowGripper::Create()
@@ -21,6 +23,8 @@ wxWindowGripper* wxWindowGripper::Create()
     return new wxWindowGripperMSW();
 #elif defined(__WXGTK__)
     return new wxWindowGripperGTK();
+#elif defined(__WXOSX__)
+    return new wxWindowGripperOSX();
 #endif
 
     wxLogError("Could not find implementation of wxWindowGripper for this platform");

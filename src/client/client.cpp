@@ -9,11 +9,13 @@ INNERSTAT_BEGIN_NAMESPACE
 class MyApp : public wxApp {
 public:
     virtual bool OnInit() {
+        // Ensure image handlers available for any PNG usage
+        wxInitAllImageHandlers();
         MainFrame *frame = new MainFrame();
         frame->Show();
         return true;
     }
 };
 
-wxIMPLEMENT_APP(MyApp);
 INNERSTAT_END_NAMESPACE
+wxIMPLEMENT_APP(innerstat::v1::MyApp);

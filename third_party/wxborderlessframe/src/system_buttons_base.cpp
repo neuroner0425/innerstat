@@ -28,6 +28,8 @@ wxSystemButtonsBase::wxSystemButtonsBase(wxBorderlessFrameBase* frame)
         m_buttonState[i] = wxSB_STATE_NORMAL;
     }
 
+    // On macOS we use native traffic lights/titlebar; skip custom button bindings entirely
+#ifndef __WXOSX__
     frame->Bind(wxEVT_DESTROY, &wxSystemButtonsBase::OnDestroy, this);
     frame->Bind(wxEVT_UPDATE_SYSTEM_BUTTONS, &wxSystemButtonsBase::OnUpdateSystemButtons, this);
     frame->Bind(wxEVT_SIZE, &wxSystemButtonsBase::OnSize, this);
@@ -42,6 +44,7 @@ wxSystemButtonsBase::wxSystemButtonsBase(wxBorderlessFrameBase* frame)
     frame->Bind(wxEVT_ACTIVATE, &wxSystemButtonsBase::OnActivate, this);
     frame->Bind(wxEVT_MAXIMIZE, &wxSystemButtonsBase::OnMaximize, this);
     frame->Bind(wxEVT_PAINT, &wxSystemButtonsBase::OnPaint, this);
+#endif
 #ifdef __WXGTK__
     frame->Bind(wxEVT_LEAVE_WINDOW, &wxSystemButtonsBase::OnMouse, this);
 #endif
@@ -77,6 +80,10 @@ wxSize wxSystemButtonsBase::GetButtonSize() const
 
 wxWindowPart wxSystemButtonsBase::GetWindowPart(wxPoint mousePos) const
 {
+#ifdef __WXOSX__
+    // On macOS, rely on native titlebar; treat top area as client (drag handled by NSWindow)
+    return wxWP_CLIENT_AREA;
+#endif
 #define IS_HOVER(i) (m_buttonState[i] == wxSB_STATE_HOVER || m_buttonState[i] == wxSB_STATE_PRESSED)
 
     if (IS_HOVER(wxSB_MINIMIZE)) return wxWP_MINIMIZE_BUTTON;
@@ -107,18 +114,29 @@ void wxSystemButtonsBase::OnUpdateSystemButtons(wxCommandEvent& evnt)
 
 void wxSystemButtonsBase::OnSize(wxSizeEvent& evnt)
 {
+#ifdef __WXOSX__
+    evnt.Skip();
+    return;
+#endif
     Redraw(true);
     evnt.Skip();
 }
 
 void wxSystemButtonsBase::OnMouseCaptureLost(wxMouseCaptureLostEvent& evnt)
 {
+#ifdef __WXOSX__
+    return;
+#endif
     m_pressedButton = -1;
     Redraw();
 }
 
 void wxSystemButtonsBase::OnMouse(wxMouseEvent& evnt)
 {
+#ifdef __WXOSX__
+    evnt.Skip();
+    return;
+#endif
     wxPoint pos = evnt.GetPosition();
 
     if ((evnt.GetEventType() == wxEVT_LEAVE_WINDOW || evnt.GetEventType() == wxEVT_NC_LEAVE)
@@ -212,6 +230,10 @@ void wxSystemButtonsBase::OnMaximize(wxMaximizeEvent& evnt)
 
 void wxSystemButtonsBase::OnPaint(wxPaintEvent& evnt)
 {
+#ifdef __WXOSX__
+    evnt.Skip();
+    return;
+#endif
     wxPaintDC dc(m_owner);
     wxRegion rgn = m_owner->GetUpdateRegion();
     wxRect bbox = rgn.GetBox();

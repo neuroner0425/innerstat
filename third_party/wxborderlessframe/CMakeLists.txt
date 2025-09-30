@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.5)
 project(wxBorderlessFrame)
 
 option(WXBF_EXAMPLE "Compile wxBorderlessFrame xample" OFF)
@@ -13,6 +13,9 @@ set(WXW_USE_MONO OFF)
 set(WXW_FILE_VERSION "32")
 set(WXW_VERSION "3.2")
 
+set(wxWidgets_ROOT_DIR "/opt/wxWidgets/build-cocoa-debug")
+set(wxWidgets_LIB_DIR "${wxWidgets_ROOT_DIR}/lib/gcc_lib")
+
 find_package(wxWidgets COMPONENTS core base REQUIRED)
 include(${wxWidgets_USE_FILE})
 add_definitions(${WXWIDGETS_DEFINITIONS})
@@ -21,16 +24,19 @@ set(LIB_SOURCES
     src/borderless_frame_base.cpp
     src/borderless_frame_gtk.cpp
     src/borderless_frame_msw.cpp
+    src/borderless_frame_osx.mm
     src/drop_shadow_frame_base.cpp
     src/drop_shadow_frame_gtk.cpp
     src/drop_shadow_frame_msw.cpp
     src/system_buttons_base.cpp
     src/system_buttons_fallback.cpp
     src/system_buttons_win10.cpp
+    src/system_buttons_mac.cpp
     src/system_buttons.cpp
     src/system_menu_png.cpp
     src/window_gripper_gtk.cpp
     src/window_gripper_msw.cpp
+    src/window_gripper_osx.mm
     src/window_gripper.cpp
 )
 
@@ -46,6 +52,13 @@ if(UNIX AND NOT APPLE)
     else()
         message("Cannot find gtk+-3.0")
     endif()
+endif()
+
+if(APPLE)
+    add_definitions(-D__WXOSX__)
+    # Ensure proper Objective-C++ compilation for .mm files
+    set_source_files_properties(src/borderless_frame_osx.mm PROPERTIES LANGUAGE CXX)
+    set_source_files_properties(src/window_gripper_osx.mm PROPERTIES LANGUAGE CXX)
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}${WXWIDGETS_CXX_FLAGS}")

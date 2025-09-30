@@ -8,7 +8,10 @@
 #include <wx/srchctrl.h>
 #include <wxbf/borderless_frame.h>
 #include <wxbf/system_buttons.h>
-#include <wxbf/window_gripper_msw.h>
+#include <wxbf/window_gripper.h>
+#ifdef __WXOSX__
+#include <wxbf/borderless_frame_osx.h>
+#endif
 
 #include "innerstat/client/canvas.h"
 #include "innerstat/client/dialog.h"
@@ -43,14 +46,20 @@ MainFrame::MainFrame()
 }
 
 void MainFrame::SetUpGUI(){
-    SetBorderColour(C_TITLE_BAR_BACKGROUND);
+    this->SetBorderColour(C_TITLE_BAR_BACKGROUND);
 
+#ifndef __WXOSX__
     systemButtons = wxSystemButtonsFactory::CreateSystemButtons(this);
+    // On Windows/Linux, use larger rectangular buttons matching the app style
     systemButtons->SetButtonSize(wxSize(46, 35));
     systemButtons->UpdateState();
     SetSystemButtonColor();
-
     titlebarHeight = systemButtons->GetTotalSize().y;
+#else
+    // macOS: use native traffic lights, no custom-drawn buttons
+    systemButtons = nullptr;
+    titlebarHeight = FromDIP(28);
+#endif
 
     menuBar = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxDefaultSize);
     menuBar->SetBackgroundColour(C_TITLE_BAR_BACKGROUND);
@@ -65,6 +74,15 @@ void MainFrame::SetUpGUI(){
     menuSizer->Add(btnEdit,   0, wxLEFT | wxALIGN_CENTER_VERTICAL);
     menuSizer->Add(btnSelect, 0, wxLEFT | wxALIGN_CENTER_VERTICAL);
     menuBar->SetSizer(menuSizer);
+
+#ifdef __WXOSX__
+    // Install menuBar as a native titlebar accessory alongside traffic lights
+    if (auto osx = dynamic_cast<wxBorderlessFrameOSX*>(this)) {
+        osx->EnableUnifiedTitlebar(true);
+        osx->SetMovableByBackground(true);
+        osx->SetTitlebarAccessory(menuBar, 8, 8);
+    }
+#endif
 
     leftToolbar = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(leftbarWidth, 100));
     leftToolbar->SetBackgroundColour(C_TOOL_BAR_BACKGROUND);
@@ -154,10 +172,16 @@ void MainFrame::SetSystemButtonColor(){
 
 void MainFrame::OnPaint(wxPaintEvent& event)
 {
+#ifdef __WXOSX__
+    // Native titlebar (NSVisualEffectView) provides its own background; avoid custom paint overlay
+    event.Skip();
+    return;
+#endif
     wxPaintDC dc(this);
     dc.SetBrush(C_TITLE_BAR_BACKGROUND);
     dc.SetPen(C_TITLE_BAR_BACKGROUND);
-    dc.DrawRectangle(0, 0, GetClientSize().x, titlebarHeight);
+    const int w = GetClientSize().x;
+    dc.DrawRectangle(0, 0, w, titlebarHeight);
 
     event.Skip();
 }
@@ -167,7 +191,14 @@ void MainFrame::OnSize(wxSizeEvent& event)
 {
     wxSize sz = GetClientSize();
 
-    menuBar->SetSize(20, 0, 220, titlebarHeight);
+    // Position menu bar to the right of left-aligned system buttons (macOS)
+    int leftInset = 0;
+    if (systemButtons && !systemButtons->AreButtonsRightAligned()) {
+        leftInset = systemButtons->GetTotalSize().x + FromDIP(8);
+    }
+    #ifndef __WXOSX__
+    menuBar->SetSize(leftInset, 0, 220, titlebarHeight);
+    #endif
 
     int searchW = 320, searchH = 30;
 
