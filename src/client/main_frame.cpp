@@ -21,6 +21,9 @@
 
 INNERSTAT_BEGIN_NAMESPACE
 
+// MainFrame의 keyPressed 배열 정의 (400개, 모두 false로 초기화)
+bool MainFrame::keyPressed[400] = { false };
+
 MainFrame::MainFrame()
     :wxBorderlessFrame(nullptr, wxID_ANY, L"Inner Stat", wxDefaultPosition, wxSize(1100, 700)), gripper(wxWindowGripper::Create()){
     

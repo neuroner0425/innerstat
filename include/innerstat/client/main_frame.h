@@ -48,18 +48,21 @@ private:
     
     /** @brief 키보드 눌림 처리 */
     inline void OnKeyDown(wxKeyEvent& evt){
-        if (evt.GetKeyCode() == WXK_SPACE && canvas) canvas->OnKeyDown(evt);
+        this->keyPressed[evt.GetKeyCode()] = true;
+        if (canvas) canvas->OnKeyDown(evt);
         else evt.Skip();
     }
     
     /** @brief 키보드 눌림 해제 처리 */
     inline void OnKeyUp(wxKeyEvent& evt){
+        this->keyPressed[evt.GetKeyCode()] = false;
         if (canvas) canvas->OnKeyUp(evt);
         else evt.Skip();
     }
 
 public:
     wxTreeCtrl *shapeTree;
+    static bool keyPressed[400]; // 0~255: 일반키, 256~: 특수키
 
     /** @brief MainFrame 생성자 - UI 초기화 및 이벤트 바인딩 */
     MainFrame();

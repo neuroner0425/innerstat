@@ -36,7 +36,6 @@ private:
     std::vector<Connection> connections;
     std::vector<Shape*> uppermostAreas;
 
-    bool spacePressed = false;
     bool middleMouseDown = false;
     
     UserAction action = UserAction::None;

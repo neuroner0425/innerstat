@@ -4,6 +4,9 @@
 
 #include <wx/dcbuffer.h>
 #include <wx/graphics.h>
+#ifdef __WXOSX__
+#include <wxbf/borderless_frame_osx.h>
+#endif
 #include <stdio.h>
 
 #include <sstream>
@@ -104,11 +107,9 @@ void MainCanvas::OnPaint(wxPaintEvent&) {
     dc.DrawLine(0, mid_y, sz.GetWidth(), mid_y);
     for (double x = GRID_SIZE * scale; x < sz.GetWidth(); x += GRID_SIZE * scale){
         dc.DrawLine(mid_x + x, 0, mid_x + x, sz.GetHeight());
-        dc.DrawLine(mid_x - x, 0, mid_x - x, sz.GetHeight());
     }
     for (double y = GRID_SIZE * scale; y < sz.GetHeight(); y += GRID_SIZE * scale){
         dc.DrawLine(0, mid_y + y, sz.GetWidth(), mid_y + y);
-        dc.DrawLine(0, mid_y - y, sz.GetWidth(), mid_y - y);
     }
 
     // 도형
@@ -182,18 +183,9 @@ void MainCanvas::OnMouseWheel(wxMouseEvent& evt) {
     if (wheelDelta == 0) wheelDelta = 120;
 
     const int rotation = evt.GetWheelRotation();
-    bool isTrackpadLike = (wheelDelta != 0) && (rotation % wheelDelta != 0);
-    if (!isTrackpadLike) {
-        isTrackpadLike = std::abs(rotation) < std::abs(wheelDelta);
-    }
-#if defined(__WXOSX__)
-    if (!isTrackpadLike) {
-        isTrackpadLike = wheelDelta <= 3;
-    }
-#endif
 
     // Ctrl/Cmd를 누른 경우에는 항상 확대/축소 동작으로 처리
-    if (!evt.CmdDown() && !evt.ControlDown() && isTrackpadLike) {
+    if (!evt.CmdDown() && !evt.ControlDown()) {
         const double lines = static_cast<double>(rotation) / static_cast<double>(wheelDelta);
         const double pixelStep = lines * 20.0;
 
@@ -282,7 +274,7 @@ void MainCanvas::OnLeftDown(wxMouseEvent& evt) {
 
     if (middleMouseDown) return;
     
-    if (spacePressed) {
+    if (MainFrame::keyPressed[WXK_COMMAND]) {
         StartPanning();
         return;
     }
@@ -382,7 +374,7 @@ void MainCanvas::OnMotion(wxMouseEvent& evt) {
     }
 
     // 2. 패닝     
-    if ((spacePressed && evt.LeftIsDown() && evt.Dragging()) ||
+    if ((MainFrame::keyPressed[WXK_COMMAND] && evt.LeftIsDown() && evt.Dragging()) ||
         (middleMouseDown && evt.MiddleIsDown() && evt.Dragging())) {
         offset = diffPos + actionOffset;
         Refresh();
@@ -513,9 +505,9 @@ void MainCanvas::UpdateAllShapesList() {
 }
 
 void MainCanvas::OnKeyDown(wxKeyEvent& evt) {
-    if (evt.GetKeyCode() == WXK_SPACE) {
+    printf("key Down\n");
+    if (evt.GetKeyCode() == WXK_COMMAND) {
         SetFocus();
-        spacePressed = true;
         evt.StopPropagation();
         SetCursor(wxCursor(wxCURSOR_HAND));
         return;
@@ -531,8 +523,8 @@ void MainCanvas::OnKeyDown(wxKeyEvent& evt) {
 }
 
 void MainCanvas::OnKeyUp(wxKeyEvent& evt) {
-    if (evt.GetKeyCode() == WXK_SPACE) {
-        spacePressed = false;
+    printf("key Up\n");
+    if (evt.GetKeyCode() == WXK_COMMAND) {
         evt.StopPropagation();
         if(!middleMouseDown){
             StopPanning();
@@ -565,7 +557,7 @@ void MainCanvas::StartPanning(){
 
 void MainCanvas::StopPanning(){
     action = UserAction::None;
-    if(!spacePressed) SetCursor(wxCursor(*wxSTANDARD_CURSOR));
+    if(!MainFrame::keyPressed[WXK_COMMAND]) SetCursor(wxCursor(*wxSTANDARD_CURSOR));
     if (HasCapture()) ReleaseMouse();
 }
 
