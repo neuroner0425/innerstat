@@ -34,6 +34,9 @@ MainCanvas::MainCanvas(wxWindow* parent, MainFrame* frame)
     Bind(wxEVT_MOTION, &MainCanvas::OnMotion, this);
     Bind(wxEVT_LEFT_DCLICK, &MainCanvas::OnLeftDClick, this);
     Bind(wxEVT_IDLE, &MainCanvas::OnFirstIdle, this);
+#ifdef __WXOSX__
+    Bind(wxEVT_MAGNIFY, &MainCanvas::OnMagnify, this);
+#endif
 }
 
 MainCanvas::~MainCanvas() {
@@ -173,8 +176,39 @@ void MainCanvas::OnPaint(wxPaintEvent&) {
 
 void MainCanvas::OnMouseWheel(wxMouseEvent& evt) {
     if(action != UserAction::None) return;
+
+    // 트랙패드의 스크롤은 패닝으로 처리하고, 마우스 휠은 확대/축소에 사용
+    int wheelDelta = evt.GetWheelDelta();
+    if (wheelDelta == 0) wheelDelta = 120;
+
+    const int rotation = evt.GetWheelRotation();
+    bool isTrackpadLike = (wheelDelta != 0) && (rotation % wheelDelta != 0);
+    if (!isTrackpadLike) {
+        isTrackpadLike = std::abs(rotation) < std::abs(wheelDelta);
+    }
+#if defined(__WXOSX__)
+    if (!isTrackpadLike) {
+        isTrackpadLike = wheelDelta <= 3;
+    }
+#endif
+
+    // Ctrl/Cmd를 누른 경우에는 항상 확대/축소 동작으로 처리
+    if (!evt.CmdDown() && !evt.ControlDown() && isTrackpadLike) {
+        const double lines = static_cast<double>(rotation) / static_cast<double>(wheelDelta);
+        const double pixelStep = lines * 20.0;
+
+        if (evt.GetWheelAxis() == wxMOUSE_WHEEL_HORIZONTAL) {
+            offset.x -= pixelStep;
+        } else {
+            offset.y += pixelStep; // 트랙패드 제스처는 화면을 손가락 방향으로 이동
+        }
+
+        Refresh();
+        return;
+    }
+
     // 휠 방향에 따라 배율 조정값 결정
-    double factor = (evt.GetWheelRotation() > 0) ? 1.1 : 1.0 / 1.1;
+    double factor = (rotation > 0) ? 1.05 : 1.0 / 1.05;
 
     wxPoint mouse = evt.GetPosition();
 
@@ -184,8 +218,8 @@ void MainCanvas::OnMouseWheel(wxMouseEvent& evt) {
 
     // 2. 배율 적용 (최소/최대 배율 제한 포함)
     scale *= factor;
-    if (scale < 0.1) scale = 0.1;
-    if (scale > 10.0) scale = 10.0;
+    if (scale < CANVAS_MIN_SCALE) scale = CANVAS_MIN_SCALE;
+    if (scale > CANVAS_MAX_SCALE) scale = CANVAS_MAX_SCALE;
 
     // 3. 확대/축소 후의 "논리 좌표" 계산
     wxPoint2DDouble after((mouse.x - offset.x) / scale,
@@ -198,6 +232,49 @@ void MainCanvas::OnMouseWheel(wxMouseEvent& evt) {
     // 5. 다시 그리기
     Refresh();
 }
+
+#ifdef __WXOSX__
+void MainCanvas::OnMagnify(wxMouseEvent& evt) {
+    if (action != UserAction::None) {
+        evt.Skip();
+        return;
+    }
+
+    // 핀치 제스처의 배율 변화를 기준으로 손가락 위치를 중심으로 확대/축소
+    const double magnifyDelta = evt.GetMagnification();
+    if (std::abs(magnifyDelta) < 1e-4) {
+        evt.Skip();
+        return;
+    }
+
+    double factor = 1.0 + magnifyDelta;
+    if (factor <= 0.0) {
+        factor = magnifyDelta > 0 ? 1.05 : 1.0 / 1.05;
+    }
+
+    wxPoint pivot = evt.GetPosition();
+    if (!pivot.IsFullySpecified()) {
+        wxSize clientSize = GetClientSize();
+        pivot = wxPoint(clientSize.GetWidth() / 2, clientSize.GetHeight() / 2);
+    }
+
+    wxPoint2DDouble before((pivot.x - offset.x) / scale,
+                           (pivot.y - offset.y) / scale);
+
+    scale *= factor;
+    if (scale < CANVAS_MIN_SCALE) scale = CANVAS_MIN_SCALE;
+    if (scale > CANVAS_MAX_SCALE) scale = CANVAS_MAX_SCALE;
+
+    wxPoint2DDouble after((pivot.x - offset.x) / scale,
+                          (pivot.y - offset.y) / scale);
+
+    offset.x += (after.m_x - before.m_x) * scale;
+    offset.y += (after.m_y - before.m_y) * scale;
+
+    Refresh();
+    evt.StopPropagation();
+}
+#endif
 
 void MainCanvas::OnLeftDown(wxMouseEvent& evt) {
     wxPoint mouse = evt.GetPosition();

@@ -13,6 +13,8 @@
 INNERSTAT_BEGIN_NAMESPACE
 
 constexpr int GRID_SIZE = 40;
+constexpr double CANVAS_MAX_SCALE = 4;
+constexpr double CANVAS_MIN_SCALE = 0.3;
 
 // 도형의 크기 조절 핸들 타입
 enum class HandleType {

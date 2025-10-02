@@ -141,6 +141,11 @@ private:
 
     /** @brief 도형 더블클릭 시 속성창 열기 */
     void OnLeftDClick(wxMouseEvent& evt);
+
+#ifdef __WXOSX__
+    /** @brief 맥 트랙패드 확대/축소 제스처 처리 */
+    void OnMagnify(wxMouseEvent& evt);
+#endif
 };
 
 INNERSTAT_END_NAMESPACE
