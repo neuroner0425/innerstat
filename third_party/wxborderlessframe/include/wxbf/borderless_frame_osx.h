@@ -78,12 +78,17 @@ public:
     void EnableUnifiedTitlebar(bool enable = true);
     void SetTitlebarAccessory(wxWindow* accessory, int leftPaddingDip = 8, int rightPaddingDip = 8);
     void SetMovableByBackground(bool movable = true);
+    // Start native window drag (calls Cocoa performWindowDragWithEvent on current event)
+    void BeginNativeDrag();
 
 protected:
     virtual wxWindowPart GetWindowPart(wxPoint mousePosition) const { return wxWP_CLIENT_AREA; }
 
 private:
     void OnMouse(wxMouseEvent& evnt);
+    void OnAccessoryLeftDown(wxMouseEvent& evnt);
+    void OnSizeEvt(wxSizeEvent& evnt);
+    void UpdateTitlebarLayout();
     void InstallOrRemoveTitlebarAccessory();
 
     wxWindow* m_titlebarAccessory{nullptr};
@@ -91,6 +96,7 @@ private:
     int m_titlebarRightPad{8};
     bool m_unifiedTitlebar{true};
     bool m_movableByBackground{true};
+    void* m_titlebarVev{nullptr}; // DraggableVisualEffectView*
 
     wxColour m_borderColour{168,168,168};
     int m_borderThickness{1};

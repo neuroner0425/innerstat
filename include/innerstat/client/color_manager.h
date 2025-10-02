@@ -22,4 +22,6 @@
 #define C_CLIENT_GRID wxColor(64, 64, 64) // #404040
 #define C_CLIENT_FONT wxColor(130, 130, 130) // #828282
 
+#define C_HIGHLIGHT_BACKGROUND wxColor(75, 110, 175) // #4B6EAF
+
 // #define  wxColor()

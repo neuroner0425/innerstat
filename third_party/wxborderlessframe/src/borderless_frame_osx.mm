@@ -29,6 +29,33 @@ static inline NSView* GetNSViewFromWx(wxWindow* win)
     return (NSView*)handle;
 }
 
+// Compute the current titlebar region (y, height) within the window's contentView coordinates.
+static inline void GetTitlebarRegion(NSWindow* nswin, CGFloat& outY, CGFloat& outH)
+{
+    outY = 0.0;
+    outH = 35.0; // fallback
+    if (!nswin) return;
+    NSView* contentView = nswin.contentView;
+    if (!contentView) return;
+    // contentLayoutRect excludes the titlebar/toolbar area; the difference to bounds is the titlebar height
+    NSRect layoutRect = nswin.contentLayoutRect; // available content area below titlebar
+    CGFloat boundsH = contentView.bounds.size.height;
+    CGFloat layoutH = layoutRect.size.height;
+    CGFloat titlebarH = boundsH - layoutH;
+    if (titlebarH > 0.0 && titlebarH < boundsH) {
+        outH = titlebarH;
+        outY = layoutH; // titlebar starts just above the layout rect
+    }
+}
+
+// A visual effect view that allows dragging the window by clicking anywhere on it
+@interface DraggableVisualEffectView : NSVisualEffectView
+@end
+
+@implementation DraggableVisualEffectView
+- (BOOL)mouseDownCanMoveWindow { return YES; }
+@end
+
 bool wxBorderlessFrameOSX::Create(wxWindow* parent,
     wxWindowID id,
     const wxString& title,
@@ -62,6 +89,7 @@ bool wxBorderlessFrameOSX::Create(wxWindow* parent,
     Bind(wxEVT_LEFT_DCLICK, &wxBorderlessFrameOSX::OnMouse, this);
     Bind(wxEVT_RIGHT_DOWN, &wxBorderlessFrameOSX::OnMouse, this);
     Bind(wxEVT_RIGHT_UP, &wxBorderlessFrameOSX::OnMouse, this);
+    Bind(wxEVT_SIZE, &wxBorderlessFrameOSX::OnSizeEvt, this);
 
     return true;
 }
@@ -111,11 +139,30 @@ void wxBorderlessFrameOSX::SetMovableByBackground(bool movable)
     NSWindow* nswin = GetNSWindowFromWx(this);
     if (nswin) {
         nswin.movableByWindowBackground = movable ? YES : NO;
+        // 보조: 전체 타이틀바(FullSizeContentView) 배경에서도 드래그되도록 보장
+        if (movable) {
+            nswin.styleMask |= NSWindowStyleMaskFullSizeContentView;
+            nswin.titlebarAppearsTransparent = YES;
+        }
+    }
+}
+
+void wxBorderlessFrameOSX::BeginNativeDrag()
+{
+    NSWindow* nswin = GetNSWindowFromWx(this);
+    if (!nswin) return;
+    NSEvent* event = [NSApp currentEvent];
+    if (event) {
+        [nswin performWindowDragWithEvent:event];
     }
 }
 
 void wxBorderlessFrameOSX::SetTitlebarAccessory(wxWindow* accessory, int leftPaddingDip, int rightPaddingDip)
 {
+    // If replacing an accessory, unbind previous handler to avoid duplicates
+    if (m_titlebarAccessory) {
+        m_titlebarAccessory->Unbind(wxEVT_LEFT_DOWN, &wxBorderlessFrameOSX::OnAccessoryLeftDown, this);
+    }
     m_titlebarAccessory = accessory;
     m_titlebarLeftPad = leftPaddingDip;
     m_titlebarRightPad = rightPaddingDip;
@@ -135,7 +182,7 @@ void wxBorderlessFrameOSX::InstallOrRemoveTitlebarAccessory()
     }
 
     // Prepare NSVisualEffectView for native translucent titlebar look
-    NSVisualEffectView* vev = [[NSVisualEffectView alloc] init];
+    DraggableVisualEffectView* vev = [[DraggableVisualEffectView alloc] init];
     vev.material = NSVisualEffectMaterialTitlebar;
     vev.blendingMode = NSVisualEffectBlendingModeBehindWindow;
     vev.state = NSVisualEffectStateActive;
@@ -146,31 +193,73 @@ void wxBorderlessFrameOSX::InstallOrRemoveTitlebarAccessory()
     NSView* contentView = nswin.contentView;
     if (!contentView) return;
 
-    // Position within titlebar height =  titlebar area approximated by toolbar height
-    CGFloat titlebarHeight = 28.0; // reasonable default; Cocoa manages actual height
-    NSRect frame = NSMakeRect(0, contentView.bounds.size.height - titlebarHeight,
-                              contentView.bounds.size.width, titlebarHeight);
+    // Use actual titlebar region computed from contentLayoutRect
+    CGFloat titlebarY = 0.0, titlebarHeight = 35.0;
+    GetTitlebarRegion(nswin, titlebarY, titlebarHeight);
+    NSRect frame = NSMakeRect(0, titlebarY, contentView.bounds.size.width, titlebarHeight);
     vev.frame = frame;
+    // Ensure it resizes with the window width and stays at the top
+    vev.autoresizingMask = NSViewWidthSizable | NSViewMinYMargin;
 
-    // Place accessory view with padding and natural fitting size
-    wxSize wxBest = m_titlebarAccessory->GetBestSize();
-    // Compute rightmost edge of traffic lights cluster
-    NSButton* closeBtn = [nswin standardWindowButton:NSWindowCloseButton];
-    NSButton* miniBtn = [nswin standardWindowButton:NSWindowMiniaturizeButton];
-    NSButton* zoomBtn = [nswin standardWindowButton:NSWindowZoomButton];
-    CGFloat clusterMaxX = MAX(NSMaxX(closeBtn.frame), MAX(NSMaxX(miniBtn.frame), NSMaxX(zoomBtn.frame)));
-    CGFloat ax = clusterMaxX + leftPad;
-    int iw = (int)wxBest.x;
+    // Make accessory fill the entire titlebar width, including behind traffic lights
+    // Interactive controls should avoid overlapping traffic lights via their own internal padding/sizers
+    int iw = (int)std::max<CGFloat>(contentView.bounds.size.width - rightPad, 0);
     int ih = (int)titlebarHeight;
     if (iw <= 0) iw = 220; // fallback width
-    m_titlebarAccessory->SetSize(ax, 0, iw, ih);
+    m_titlebarAccessory->SetSize(0, 0, iw, ih);
+    // Ensure empty background of accessory initiates native drag
+    m_titlebarAccessory->Bind(wxEVT_LEFT_DOWN, &wxBorderlessFrameOSX::OnAccessoryLeftDown, this);
 
     // Add visual effect view beneath accessory so it stays visible
     NSView* accessoryView = GetNSViewFromWx(m_titlebarAccessory);
     [contentView addSubview:vev positioned:NSWindowBelow relativeTo:accessoryView];
+    // Store raw pointer; NSView hierarchy retains subviews, ARC is disabled in this file
+    m_titlebarVev = (void*)vev;
 
     [nswin layoutIfNeeded];
     [nswin display];
+}
+
+void wxBorderlessFrameOSX::UpdateTitlebarLayout()
+{
+    NSWindow* nswin = GetNSWindowFromWx(this);
+    if (!nswin) return;
+    NSView* contentView = nswin.contentView;
+    if (!contentView) return;
+
+    // Determine current titlebar region precisely
+    CGFloat titlebarY = 0.0, titlebarHeight = 35.0;
+    GetTitlebarRegion(nswin, titlebarY, titlebarHeight);
+    NSRect frame = NSMakeRect(0, titlebarY, contentView.bounds.size.width, titlebarHeight);
+
+    if (m_titlebarVev) {
+        DraggableVisualEffectView* vev = (DraggableVisualEffectView*)m_titlebarVev;
+        vev.frame = frame;
+    }
+
+    if (m_titlebarAccessory) {
+        int iw = (int)std::max<CGFloat>(contentView.bounds.size.width - (CGFloat)FromDIP(m_titlebarRightPad), 0);
+        int ih = (int)titlebarHeight;
+        m_titlebarAccessory->SetSize(0, 0, iw, ih);
+    }
+
+    [nswin layoutIfNeeded];
+    [nswin display];
+}
+
+void wxBorderlessFrameOSX::OnAccessoryLeftDown(wxMouseEvent& evnt)
+{
+    // Only start drag if click is on accessory's background (not on child controls)
+    // In wxWidgets, child controls typically handle the event first; this handler
+    // effectively covers the empty areas of the accessory panel.
+    BeginNativeDrag();
+    // Do not propagate further to avoid conflicting behaviors while dragging
+}
+
+void wxBorderlessFrameOSX::OnSizeEvt(wxSizeEvent& evnt)
+{
+    UpdateTitlebarLayout();
+    evnt.Skip();
 }
 
 void wxBorderlessFrameOSX::SetWindowStyleFlag(long style)

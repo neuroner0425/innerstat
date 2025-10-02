@@ -58,14 +58,15 @@ void MainFrame::SetUpGUI(){
 #else
     // macOS: use native traffic lights, no custom-drawn buttons
     systemButtons = nullptr;
-    titlebarHeight = FromDIP(28);
+    titlebarHeight = FromDIP(35);
 #endif
 
-    menuBar = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxDefaultSize);
+    menuBar = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(-1, titlebarHeight));
     menuBar->SetBackgroundColour(C_TITLE_BAR_BACKGROUND);
 
     wxBoxSizer* menuSizer = new wxBoxSizer(wxHORIZONTAL);
 
+#ifndef __WXOSX__
     wxButton* btnFile = makeMenuBtn(L"파일(F)", {L"새 파일", L"열기", L"저장", L"다른 이름으로 저장"});
     wxButton* btnEdit = makeMenuBtn(L"편집(E)", {L"실행 취소", L"다시 실행", L"복사", L"붙여넣기"});
     wxButton* btnSelect = makeMenuBtn(L"선택 영역(S)", {L"모두 선택", L"줄 선택", L"블록 선택"});
@@ -73,15 +74,38 @@ void MainFrame::SetUpGUI(){
     menuSizer->Add(btnFile,   0, wxLEFT | wxALIGN_CENTER_VERTICAL);
     menuSizer->Add(btnEdit,   0, wxLEFT | wxALIGN_CENTER_VERTICAL);
     menuSizer->Add(btnSelect, 0, wxLEFT | wxALIGN_CENTER_VERTICAL);
+#elif __WXOSX__
+    wxMenu *fileMenu = new wxMenu();
+    fileMenu->Append(wxID_OPEN, L"열기(&O)");
+    fileMenu->Append(wxID_SAVE, L"저장(&S)");
+
+    wxMenu *editMenu = new wxMenu();
+    editMenu->Append(wxID_UNDO, L"실행 취소(&Z)");
+    editMenu->Append(wxID_REDO, L"다시 실행(&Y)");
+    editMenu->Append(wxID_COPY, L"복사(&C)");
+    editMenu->Append(wxID_PASTE, L"붙여넣기(&V)");
+
+    wxMenu *selectMenu = new wxMenu();
+    selectMenu->Append(wxID_SELECTALL, L"모두 선택(&A)");
+    selectMenu->Append(wxID_ANY, L"줄 선택");
+    selectMenu->Append(wxID_ANY, L"블록 선택");
+
+    wxMenuBar *menu = new wxMenuBar();
+    menu->Append(fileMenu, L"파일");
+    menu->Append(editMenu, L"편집");
+    menu->Append(selectMenu, L"선택 영역");
+    SetMenuBar(menu);
+#endif
     menuBar->SetSizer(menuSizer);
 
 #ifdef __WXOSX__
     // Install menuBar as a native titlebar accessory alongside traffic lights
     if (auto osx = dynamic_cast<wxBorderlessFrameOSX*>(this)) {
         osx->EnableUnifiedTitlebar(true);
-        osx->SetMovableByBackground(true);
-        osx->SetTitlebarAccessory(menuBar, 8, 8);
+        osx->SetMovableByBackground(false);
+        osx->SetTitlebarAccessory(menuBar, 1, 1);
     }
+    // Drag logic is handled natively by the titlebar visual effect view; no app-level hacks needed
 #endif
 
     leftToolbar = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(leftbarWidth, 100));
@@ -196,9 +220,13 @@ void MainFrame::OnSize(wxSizeEvent& event)
     if (systemButtons && !systemButtons->AreButtonsRightAligned()) {
         leftInset = systemButtons->GetTotalSize().x + FromDIP(8);
     }
-    #ifndef __WXOSX__
-    menuBar->SetSize(leftInset, 0, 220, titlebarHeight);
-    #endif
+#ifndef __WXOSX__
+    // Windows/Linux: menuBar가 전체 가로를 차지하도록
+    menuBar->SetSize(leftInset, 0, sz.x - leftInset, titlebarHeight);
+#else
+    // macOS: titlebar accessory도 창 크기에 맞게 width 갱신
+    // menuBar->SetSize(0, 0, sz.x, titlebarHeight);
+#endif
 
     int searchW = 320, searchH = 30;
 
