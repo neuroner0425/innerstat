@@ -32,8 +32,6 @@ MainCanvas::MainCanvas(wxWindow* parent, MainFrame* frame)
     Bind(wxEVT_LEFT_UP, &MainCanvas::OnLeftUp, this);
     Bind(wxEVT_MIDDLE_DOWN, &MainCanvas::OnMiddleDown, this);
     Bind(wxEVT_MIDDLE_UP, &MainCanvas::OnMiddleUp, this);
-    Bind(wxEVT_KEY_DOWN, &MainCanvas::OnKeyDown, this);
-    Bind(wxEVT_KEY_UP, &MainCanvas::OnKeyUp, this);
     Bind(wxEVT_MOTION, &MainCanvas::OnMotion, this);
     Bind(wxEVT_LEFT_DCLICK, &MainCanvas::OnLeftDClick, this);
     Bind(wxEVT_IDLE, &MainCanvas::OnFirstIdle, this);
@@ -505,7 +503,6 @@ void MainCanvas::UpdateAllShapesList() {
 }
 
 void MainCanvas::OnKeyDown(wxKeyEvent& evt) {
-    printf("key Down\n");
     if (evt.GetKeyCode() == WXK_COMMAND) {
         SetFocus();
         evt.StopPropagation();
@@ -523,7 +520,6 @@ void MainCanvas::OnKeyDown(wxKeyEvent& evt) {
 }
 
 void MainCanvas::OnKeyUp(wxKeyEvent& evt) {
-    printf("key Up\n");
     if (evt.GetKeyCode() == WXK_COMMAND) {
         evt.StopPropagation();
         if(!middleMouseDown){

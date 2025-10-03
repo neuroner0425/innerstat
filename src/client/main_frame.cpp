@@ -31,8 +31,6 @@ MainFrame::MainFrame()
     
     Bind(wxEVT_PAINT, &MainFrame::OnPaint, this);
     Bind(wxEVT_SIZE, &MainFrame::OnSize, this);
-    Bind(wxEVT_CHAR_HOOK, &MainFrame::OnKeyDown, this);
-    Bind(wxEVT_KEY_UP, &MainFrame::OnKeyUp, this);
 
     addAreaBtn->Bind(wxEVT_BUTTON, [=](wxCommandEvent &) {
         addTopLevelArea();
