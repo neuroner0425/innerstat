@@ -1,6 +1,6 @@
 #include "innerstat/client/dialog.h"
 #ifndef INNERSTAT_CLIENT_BASE_H
-    #include "innerstat/client/base.h"
+    #include "innerstat/client/client.h"
 #endif
 #include "innerstat/client/shape.h"
 

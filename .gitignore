@@ -7,3 +7,8 @@ build/
 tmp/
 
 CMakeFiles
+
+*.md
+!README.md
+
+.DS_Store

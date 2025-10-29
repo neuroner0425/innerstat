@@ -26,6 +26,8 @@ option(BUILD_SL "Build SL App" ON)
 # include folder
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/third_party/wxborderlessframe/include
+    ${CMAKE_SOURCE_DIR}/third_party/wxnosashsplitter/include
     /opt/wxWidgets/include
     /opt/wxWidgets/build-cocoa-debug/lib/wx/include/osx_cocoa-unicode-3.3
     /opt/wxWidgets/build-cocoa-debug

@@ -2,7 +2,7 @@
 #define INNERSTAT_CLIENT_MAIN_FRAME_H
 
 #ifndef INNERSTAT_CLIENT_BASE_H
-    #include "innerstat/client/base.h"
+    #include "innerstat/client/client.h"
 #endif
 
 #include <wx/wx.h>

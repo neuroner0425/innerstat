@@ -1,5 +1,5 @@
 #ifndef INNERSTAT_CLIENT_BASE_H
-    #include "innerstat/client/base.h"
+    #include "innerstat/client/client.h"
 #endif
 
 #include <wx/wx.h>
@@ -17,7 +17,7 @@
 #include "innerstat/client/dialog.h"
 #include "innerstat/client/color_manager.h"
 #include "innerstat/client/main_frame.h"
-#include "innerstat/client/no_sash_splitter.h"
+#include "no_sash_splitter.h"
 
 INNERSTAT_BEGIN_NAMESPACE
 

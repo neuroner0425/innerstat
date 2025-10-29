@@ -1,15 +1,9 @@
-#ifndef INNERSTAT_CLIENT_NO_SASH_SPLITTER_H
-#define INNERSTAT_CLIENT_NO_SASH_SPLITTER_H
-
-#ifndef INNERSTAT_CLIENT_BASE_H
-    #include "innerstat/client/base.h"
-#endif
+#ifndef _NO_SASH_SPLITTER_H
+#define _NO_SASH_SPLITTER_H
 
 #include <wx/splitter.h>
 #include <wx/colour.h>
 #include <wx/dcclient.h>
-
-INNERSTAT_BEGIN_NAMESPACE
 
 class wxNoSashSplitterWindow : public wxSplitterWindow {
 public:
@@ -47,7 +41,5 @@ protected:
         // do nothing
     }
 };
-
-INNERSTAT_END_NAMESPACE
 
 #endif
