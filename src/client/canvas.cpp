@@ -17,7 +17,7 @@
 #include "innerstat/client/canvas.h"
 #include "innerstat/client/shape.h"
 #include "innerstat/client/port.h"
-#include "innerstat/client/connection.h"
+#include "innerstat/client/shape_connection.h"
 #include "innerstat/client/color_manager.h"
 #include "innerstat/client/main_frame.h"
 
@@ -136,7 +136,7 @@ void MainCanvas::OnPaint(wxPaintEvent&) {
     }
 
     // 연결선
-    for (const Connection& c : connections)
+    for (const ShapeConnection& c : connections)
         c.Draw(dc, scale, offset);
 
     // 연결선 미리보기

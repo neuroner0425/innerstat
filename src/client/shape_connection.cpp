@@ -1,9 +1,9 @@
-#include "innerstat/client/connection.h"
+#include "innerstat/client/shape_connection.h"
 #include "innerstat/client/shape.h"
 
 INNERSTAT_BEGIN_NAMESPACE
 
-void Connection::Draw(wxDC& dc, double scale, const wxPoint2DDouble& offset) const {
+void ShapeConnection::Draw(wxDC& dc, double scale, const wxPoint2DDouble& offset) const {
     if (!from || !to)
         return;
 

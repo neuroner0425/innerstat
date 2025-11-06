@@ -12,11 +12,12 @@
 #include <map>
 
 #include "innerstat/client/shape.h"
+#include "innerstat/client/shape_connection.h"
 
 INNERSTAT_BEGIN_NAMESPACE
 
 class Shape;
-class Connection;
+class ShapeConnection;
 class MainFrame;
 class Port;
 
@@ -33,7 +34,7 @@ private:
     std::map<wxTreeItemId, Shape*> shapeMap;
     std::vector<Shape*> allShapes;
 
-    std::vector<Connection> connections;
+    std::vector<ShapeConnection> connections;
     std::vector<Shape*> uppermostAreas;
 
     bool middleMouseDown = false;

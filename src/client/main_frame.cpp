@@ -17,6 +17,7 @@
 #include "innerstat/client/dialog.h"
 #include "innerstat/client/color_manager.h"
 #include "innerstat/client/main_frame.h"
+#include "innerstat/client/agent_dialog.h"
 #include "no_sash_splitter.h"
 
 INNERSTAT_BEGIN_NAMESPACE
@@ -114,6 +115,10 @@ void MainFrame::SetUpGUI(){
     wxBoxSizer* leftSizer = new wxBoxSizer(wxVERTICAL);
 
     wxButton* btn1 = makeToolBtn("F");
+    btn1->Bind(wxEVT_BUTTON, [=](wxCommandEvent &) {
+        AgentComDialog* dlg = new AgentComDialog(this);
+        dlg->Show();
+    });
     wxButton* btn2 = makeToolBtn("S");
     wxButton* btn3 = makeToolBtn("G");
 

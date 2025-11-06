@@ -1,5 +1,5 @@
-#ifndef INNERSTAT_CLIENT_CONNECTION_H
-#define INNERSTAT_CLIENT_CONNECTION_H
+#ifndef INNERSTAT_CLIENT_SHAPE_CONNECTION_H
+#define INNERSTAT_CLIENT_SHAPE_CONNECTION_H
 
 #ifndef INNERSTAT_CLIENT_BASE_H
     #include "innerstat/client/client.h"
@@ -9,7 +9,7 @@
 
 INNERSTAT_BEGIN_NAMESPACE
 
-class Connection {
+class ShapeConnection {
 public:
     const Port* from;
     const Port* to;
@@ -17,11 +17,11 @@ public:
     const Shape* toShape;
 
     /** @brief 기본 생성자 (도형 정보 없음) */
-    Connection(const Port* f, const Port* t)
+    ShapeConnection(const Port* f, const Port* t)
         : from(f), to(t), fromShape(nullptr), toShape(nullptr) {}
 
     /** @brief 도형 정보까지 포함하는 생성자 */
-    Connection(const Port* f, const Port* t, const Shape* fs, const Shape* ts)
+    ShapeConnection(const Port* f, const Port* t, const Shape* fs, const Shape* ts)
         : from(f), to(t), fromShape(fs), toShape(ts) {}
 
     /** @brief 연결선을 그리는 함수 */

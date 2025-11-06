@@ -23,47 +23,67 @@ option(BUILD_CLIENT "Build Client App" ON)
 option(BUILD_AGENT "Build Agent App" ON)
 option(BUILD_SL "Build SL App" ON)
 
-# include folder
+# include folder (project headers only)
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/third_party/wxborderlessframe/include
-    ${CMAKE_SOURCE_DIR}/third_party/wxnosashsplitter/include
-    /opt/wxWidgets/include
-    /opt/wxWidgets/build-cocoa-debug/lib/wx/include/osx_cocoa-unicode-3.3
-    /opt/wxWidgets/build-cocoa-debug
 )
 
-
-# wxWidgets configuration
-set(wxWidgets_CONFIG_EXECUTABLE "/opt/wxWidgets/build-cocoa-debug/wx-config")
-find_package(wxWidgets REQUIRED COMPONENTS core base adv aui xrc html xml net gl)
-include(${wxWidgets_USE_FILE})
-
-add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/wxborderlessframe)
-
-# 공통 빌드 함수
-function(add_my_app target src_glob)
-    file(GLOB_RECURSE SRC CONFIGURE_DEPENDS "${src_glob}")
-    add_executable(${target} ${SRC})
-    target_include_directories(${target} PRIVATE
-        ${PROJECT_INCLUDE_DIR}
-        ${CMAKE_SOURCE_DIR}/third_party/wxborderlessframe/include
-    )
-    target_link_libraries(${target} PRIVATE wxBorderlessFrame ${wxWidgets_LIBRARIES})
-    # Avoid static linking on macOS with frameworks
-    if(NOT APPLE)
-        target_link_options(${target} PRIVATE -static)
-    endif()
+# Helper for listing sources
+function(glob_src out_var pattern)
+    file(GLOB_RECURSE ${out_var} CONFIGURE_DEPENDS "${pattern}")
+    set(${out_var} ${${out_var}} PARENT_SCOPE)
 endfunction()
 
-if(BUILD_CLIENT)
-    add_my_app(client_app "${CMAKE_SOURCE_DIR}/src/client/*.cpp")
-endif()
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+# 1) Build agent first (no wx settings leak)
+set(MOSQUITTO_INCLUDE_DIR /opt/homebrew/Cellar/mosquitto/2.0.22_1/include)
+set(MOSQUITTO_LIB /opt/homebrew/lib/libmosquitto.dylib)
+set(MOSQUITTOPP_LIB /opt/homebrew/lib/libmosquittopp.dylib)
 
 if(BUILD_AGENT)
-    add_my_app(agent_app "${CMAKE_SOURCE_DIR}/src/agent/*.cpp")
+    glob_src(AGENT_SRC "${CMAKE_SOURCE_DIR}/src/agent/*.cpp")
+    add_executable(agent_app ${AGENT_SRC})
+    target_include_directories(agent_app PRIVATE ${PROJECT_INCLUDE_DIR} ${MOSQUITTO_INCLUDE_DIR})
+    target_link_libraries(agent_app PRIVATE ${MOSQUITTO_LIB} ${MOSQUITTOPP_LIB})
+    target_compile_definitions(agent_app PRIVATE USE_MQTT)
 endif()
 
-if(BUILD_SL)
-    add_my_app(systemload_app "${CMAKE_SOURCE_DIR}/src/slapp/*.cpp")
+# 2) GUI apps (wxWidgets) — configure and add targets after agent
+if(BUILD_CLIENT OR BUILD_SL)
+    # Third-party includes for GUI only
+    set(GUI_TP_INC
+        ${CMAKE_SOURCE_DIR}/third_party/wxborderlessframe/include
+        ${CMAKE_SOURCE_DIR}/third_party/wxnosashsplitter/include
+    )
+
+    set(wxWidgets_CONFIG_EXECUTABLE "/opt/wxWidgets/build-cocoa-debug/wx-config")
+    find_package(wxWidgets REQUIRED COMPONENTS core base adv aui xrc html xml net gl)
+    include(${wxWidgets_USE_FILE})
+
+    add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/wxborderlessframe)
+
+    function(add_my_wx_app target src_glob)
+        glob_src(SRC "${src_glob}")
+        add_executable(${target} ${SRC})
+        target_include_directories(${target} PRIVATE
+            ${PROJECT_INCLUDE_DIR}
+            ${GUI_TP_INC}
+        )
+        target_link_libraries(${target} PRIVATE wxBorderlessFrame ${wxWidgets_LIBRARIES})
+        if(NOT APPLE)
+            target_link_options(${target} PRIVATE -static)
+        endif()
+    endfunction()
+
+    if(BUILD_CLIENT)
+        add_my_wx_app(client_app "${CMAKE_SOURCE_DIR}/src/client/*.cpp")
+        target_compile_definitions(client_app PRIVATE USE_MQTT)
+        target_include_directories(client_app PRIVATE ${MOSQUITTO_INCLUDE_DIR})
+        target_link_libraries(client_app PRIVATE ${MOSQUITTO_LIB} ${MOSQUITTOPP_LIB})
+    endif()
+
+    if(BUILD_SL)
+        add_my_wx_app(systemload_app "${CMAKE_SOURCE_DIR}/src/slapp/*.cpp")
+    endif()
 endif()

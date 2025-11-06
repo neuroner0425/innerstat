@@ -16,6 +16,7 @@
 #include "innerstat/client/canvas.h"
 #include "innerstat/client/dialog.h"
 #include "innerstat/client/color_manager.h"
+#include "innerstat/client/agent_dialog.h"
 
 #include <memory>
 
@@ -50,6 +51,10 @@ public:
     /** @brief 키보드 눌림 처리 */
     inline void OnKeyDown(wxKeyEvent& evt){
         printf("Key Down: %d\n", evt.GetKeyCode());
+        if (evt.GetKeyCode() == 70) { // 'F' key
+            AgentComDialog* dlg = new AgentComDialog(this);
+            dlg->Show();
+        }
         this->keyPressed[evt.GetKeyCode()] = true;
         if (canvas) canvas->OnKeyDown(evt);
         else evt.Skip();
