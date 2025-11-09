@@ -16,6 +16,7 @@
 #include "innerstat/agent/check_sudo.h"
 #include "innerstat/common/system_info.h"
 #include "innerstat/agent/system_load_info.h"
+#include "innerstat/agent/single_instance_guard.h"
 
 class Agent : public mosqpp::mosquittopp {
 private:
@@ -140,6 +141,14 @@ bool Agent::interactive_connect(){
 int main() {
     std::cout << "Starting innerstat agent..." << std::endl;
 
+    // Check single instance
+    SingleInstanceGuard instance_guard("/tmp/innerstat_agent.lock");
+    if (!instance_guard.acquired()) {
+        std::cerr << "another agent is already running." << std::endl;
+        return 1;
+    }
+
+    // Initialize Mosquitto library
     mosqpp::lib_init();
     Agent agent("innerstat_agent");
     if(!agent.interactive_connect()){

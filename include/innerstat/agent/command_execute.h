@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <unistd.h>
@@ -38,6 +39,8 @@ inline std::vector<LsofItem> parseLsof(const std::string& lsof_output) {
     std::istringstream iss(lsof_output);
     std::string line;
     bool first_line = true;
+    // 중복 제거: 동일한 PID가 동일 포트를 중복 리슨하는 행(IPV4/IPV6 이중 표기 등) 제거
+    std::set<std::string> seen_pid_port; // key = pid + '|' + port
 
     while (std::getline(iss, line)) {
         if (first_line) {
@@ -48,7 +51,8 @@ inline std::vector<LsofItem> parseLsof(const std::string& lsof_output) {
         std::istringstream line_stream(line);
         std::string cmd, pid, user, fd, type, device, size_off, node, name;
 
-        line_stream >> cmd >> pid >> user >> fd >> type >> device >> size_off >> node >> name;
+        line_stream >> cmd >> pid >> user >> fd >> type >> device >> size_off >> node;
+        std::getline(line_stream, name);
 
         size_t colon_pos = name.rfind(':');
         if (colon_pos != std::string::npos) {
@@ -61,7 +65,12 @@ inline std::vector<LsofItem> parseLsof(const std::string& lsof_output) {
                 port_info.pop_back();
             }
 
-            items.emplace_back(cmd, pid, user, fd, type, device, size_off, node, name);
+            // 포트가 숫자 형태인지 간단 확인 후 중복 제거 키 구성
+            bool numeric = !port_info.empty() && std::all_of(port_info.begin(), port_info.end(), ::isdigit);
+            std::string key = pid + '|' + (numeric ? port_info : name);
+            if (seen_pid_port.insert(key).second) {
+                items.emplace_back(cmd, pid, user, fd, type, device, size_off, node, name);
+            }
         }
     }
 
