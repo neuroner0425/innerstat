@@ -44,7 +44,7 @@ public:
     void deserialize(const std::string& data);
 };
 
-LsofItem::LsofItem(const std::string& cmd_,
+inline LsofItem::LsofItem(const std::string& cmd_,
                    const std::string& pid_,
                    const std::string& user_,
                    const std::string& fd_,
@@ -66,8 +66,9 @@ class systemStatus
 public:
     std::string mac_address;
     double cpu_usage;
-    systemStatus(): mac_address(""), cpu_usage(0.0){};
-    systemStatus(std::string mac, double cpu): mac_address(mac), cpu_usage(cpu){};
+    std::string os;
+    systemStatus(): mac_address(""), cpu_usage(0.0), os(""){};
+    systemStatus(std::string mac, double cpu, std::string os_): mac_address(mac), cpu_usage(cpu), os(os_){};
     ~systemStatus(){};
 
     std::string serialize() const;
@@ -85,8 +86,8 @@ public:
     std::vector<LsofItem> lsof_items;
 
     systemInfo(std::string &data){ deserialize(data); };
-    systemInfo(std::string mac, double cpu, std::vector<LsofItem> &items)
-        : status(mac, cpu), lsof_items(items) {}
+    systemInfo(std::string mac, double cpu, std::string os, std::vector<LsofItem> &items)
+        : status(mac, cpu, os), lsof_items(items) {}
     systemInfo(systemStatus stat, std::vector<LsofItem> &items)
         : status(stat), lsof_items(items) {}
     ~systemInfo(){};
@@ -131,7 +132,8 @@ inline std::string systemStatus::serialize() const {
     using innerstat_json_util::escape;
     oss << '{'
         << "\"mac_address\":\"" << escape(mac_address) << "\",";
-    oss << "\"cpu_usage\":" << cpu_usage;
+    oss << "\"cpu_usage\":" << cpu_usage << ",";
+    oss << "\"os\":\"" << escape(os) << "\"";
     oss << '}';
     return oss.str();
 }
@@ -139,6 +141,7 @@ inline std::string systemStatus::serialize() const {
 inline void systemStatus::deserialize(const std::string &data) {
     using namespace innerstat_json_util;
     extractString(data, "mac_address", mac_address);
+    extractString(data, "os", os);
     std::string cpu_str;
     if (extractString(data, "cpu_usage", cpu_str)) {
         cpu_usage = std::strtod(cpu_str.c_str(), nullptr);

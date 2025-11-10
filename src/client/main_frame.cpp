@@ -18,6 +18,7 @@
 #include "innerstat/client/color_manager.h"
 #include "innerstat/client/main_frame.h"
 #include "innerstat/client/agent_dialog.h"
+#include "innerstat/client/AgentSelectionDialog.h"
 #include "no_sash_splitter.h"
 
 INNERSTAT_BEGIN_NAMESPACE
@@ -45,6 +46,21 @@ MainFrame::MainFrame()
 
     wxSizeEvent dummy;
     OnSize(dummy);
+}
+
+void MainFrame::addTopLevelArea() {
+    if (agent_selection_dialog_) {
+        agent_selection_dialog_->Raise();
+        agent_selection_dialog_->SetFocus();
+    } else {
+        agent_selection_dialog_ = new AgentSelectionDialog(this, canvas);
+        agent_selection_dialog_->Show();
+        // Register a handler to nullify the pointer when the dialog is closed
+        agent_selection_dialog_->Bind(wxEVT_CLOSE_WINDOW, [this](wxCloseEvent& event) {
+            agent_selection_dialog_ = nullptr;
+            event.Skip(); // Allow the dialog's own handler to run and destroy it
+        });
+    }
 }
 
 void MainFrame::SetUpGUI(){
@@ -156,7 +172,7 @@ void MainFrame::SetUpGUI(){
     splitter->SplitVertically(leftPanel, canvas);
 
     CallAfter([=]() {
-        splitter->SetSashPosition(200);
+        splitter->SetSashPosition(350);
         splitter->Refresh();
         splitter->Update();
     });

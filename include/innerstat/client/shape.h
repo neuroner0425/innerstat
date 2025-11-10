@@ -38,7 +38,7 @@ public:
     /** @brief 생성자
      * @param x X 좌표 @param y Y 좌표 @param w 너비 @param h 높이 @param type 시스템 타입 */
     Shape(int x, int y, int w, int h, 
-        MainCanvas* canvas, Shape* parent, const std::string& label, const ShapeType& Type);
+        MainCanvas* canvas, Shape* parent, const std::string& label, const ShapeType& Type, int portCount = 1);
 
     /** @brief 소멸자 */
     ~Shape();

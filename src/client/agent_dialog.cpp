@@ -28,5 +28,10 @@ AgentComDialog::AgentComDialog(wxWindow* parent)
 
 void AgentComDialog::OnPsButtonClick(wxCommandEvent& event) {
     // Request ps from agent
-    AgentMqttConnection::GetInstance()->SendCommand("ps");
+    std::string mac = AgentMqttConnection::GetInstance()->GetLastAgentMac();
+    if (!mac.empty()) {
+        AgentMqttConnection::GetInstance()->SendCommand(mac, "ps");
+    } else {
+        wxLogMessage("No agent has reported yet.");
+    }
 }

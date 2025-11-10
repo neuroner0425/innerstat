@@ -23,7 +23,7 @@ class Port;
 
 class MainCanvas : public wxPanel {
 public:
-    bool isdebug = true;
+    bool isdebug = false;
 
     double scale = 1.0;
     wxPoint offset = { 0, 0 };
@@ -62,7 +62,9 @@ public:
     ~MainCanvas();
 
     /** @brief 최상단 Shape 추가 */
-    void AddNewArea(const std::string& label, const ShapeType areaType);
+    Shape* AddNewArea(const std::string& label, const ShapeType areaType);
+    Shape* AddNewArea(int w, int h, const std::string& label, const ShapeType areaType);
+    Shape* AddNewArea(int x, int y, int w, int h, const std::string& label, const ShapeType areaType);
 
     /** @brief 리스트 UI를 도형 목록과 동기화 */
     void RefreshTree();

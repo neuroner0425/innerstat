@@ -6,6 +6,7 @@
 #include "innerstat/client/canvas.h"
 #include "innerstat/client/port.h"
 #include "innerstat/client/dialog.h"
+#include "innerstat/client/color_manager.h"
 
 #include <wx/textdlg.h>
 #include <wx/textctrl.h>
@@ -20,10 +21,10 @@ INNERSTAT_BEGIN_NAMESPACE
 
 Shape::Shape(int x, int y, int w, int h, 
     MainCanvas* c, Shape* p, const std::string& l,
-    const ShapeType& t)
+    const ShapeType& t, int portCount)
     : rect(wxPoint(x,y), wxSize(w, h)), canvas(c), parent(p), label(l),
         scale(&(canvas->scale)), offset(&(canvas->offset)), type(t) {
-    SetPortCount(1);
+    SetPortCount(portCount);
 }
 
 Shape::~Shape(){
@@ -40,12 +41,25 @@ void Shape::Draw(wxDC& dc) const {
     int w = (int)(rect.width * (*scale));
     int h = (int)(rect.height * (*scale));
     
-    dc.SetBrush(isSelected ? wxColour(70,130,255) : wxColour(186, 225, 255));
-    dc.SetPen(wxPen(*wxBLACK, std::max(1, (int)(2 * (*scale)))));
+    switch (this->GetType())
+    {
+    case ShapeType::OS:
+        dc.SetBrush(isSelected ? C_OS_SELECTED_FILL : C_OS_FILL);
+        break;
+    case ShapeType::PS:
+        dc.SetBrush(isSelected ? C_PS_SELECTED_FILL : C_PS_FILL);
+        break;
+    default:
+        dc.SetBrush(isSelected ? C_SHAPE_SELECTED_FILL : C_SHAPE_FILL);
+        break;
+    }
+    if(isSelected) dc.SetPen(wxPen(C_SHAPE_SELECTED_BORDER, std::max(1, (int)(2 * (*scale)))));
+    else dc.SetPen(wxPen(C_SHAPE_BORDER, std::max(1, (int)(2 * (*scale)))));
     dc.DrawRoundedRectangle(screenRect, (int)(10 * (*scale)));
     
     wxFont font((int)(9 * (*scale)), wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
     dc.SetFont(font);
+    dc.SetTextForeground(C_SHAPE_LABEL);
     dc.DrawText(label, screenRect.GetPosition() + wxPoint((int)(5 * (*scale)), (int)(5 * (*scale)) + h));
     dc.SetFont(oldFont);
     

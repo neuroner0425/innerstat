@@ -48,7 +48,8 @@ enum class ShapeType {
   OS,
   VM,
   Container,
-  Network
+  Network,
+  Other
 };
 
 // 유저가 MainCanvas에서 수행할 수 있는 액션

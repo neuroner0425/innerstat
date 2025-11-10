@@ -10,7 +10,6 @@
 #include <mosquittopp.h>
 #include <chrono>
 #include <thread>
-#include <format>
 #include "innerstat/agent/command_execute.h"
 #include "innerstat/agent/mac_address.h"
 #include "innerstat/agent/check_sudo.h"
@@ -24,15 +23,16 @@ private:
     std::string mac_address;
     bool connected_ = false; // on_connect에서 설정되는 플래그
     bool loop_started_ = false; // loop_start 호출 여부
+    void publishSystemInfo();
 
 public:
     Agent(const char* id);
     ~Agent(){};
 
-    void on_connect(int rc) override;
-    void on_disconnect(int rc) override;
-    void on_message(const struct mosquitto_message* message) override;
-    void agent_routine();
+    void on_connect(int rc) override; // 연결 성공 시 호출
+    void on_disconnect(int rc) override; // 연결 해제 시 호출
+    void on_message(const struct mosquitto_message* message) override; // 메시지 수신 시 호출
+    void agent_routine(); // 에이전트 주기적 작업
     bool interactive_connect();
 };
 
@@ -48,7 +48,9 @@ Agent::Agent(const char* id) : mosquittopp(id) {
 void Agent::on_connect(int rc) {
     if (rc == 0) {
         std::cout << "Agent connected to broker." << std::endl;
-        subscribe(NULL, "innerstat/command");
+        std::string command_topic = "innerstat/" + this->mac_address + "/command";
+        subscribe(NULL, command_topic.c_str());
+        subscribe(NULL, "innerstat/broadcast/request_info");
         connected_ = true;
     } else {
         std::cerr << "Agent connection failed." << std::endl;
@@ -64,21 +66,38 @@ void Agent::on_disconnect(int rc) {
 void Agent::on_message(const struct mosquitto_message* message) {
     std::string topic = message->topic;
     std::string payload = std::string((char*)message->payload, message->payloadlen);
+    std::string command_topic = "innerstat/" + this->mac_address + "/command";
 
-    if (topic == "innerstat/command" && payload == "ps") {
+    if (topic == command_topic && payload == "ps") {
         std::string result = runCommand("ps -a");
-        publish(NULL, std::string("innerstat/" + mac_address + "/systemInfo").c_str(), result.length(), result.c_str());
+        std::string ps_topic = "innerstat/" + this->mac_address + "/ps";
+        publish(NULL, ps_topic.c_str(), result.length(), result.c_str());
+    } else if (topic == "innerstat/broadcast/request_info") {
+        publishSystemInfo();
     }
+}
+
+void Agent::publishSystemInfo() {
+    double cpu_load = get_cpu_usage();
+    std::vector<LsofItem> parsed_result = getPSbyPort(sudo_mode);
+    std::string os = "Unknown";
+#ifdef _WIN32
+    os = "Windows";
+#elif __APPLE__
+    os = "macOS";
+#elif __linux__
+    os = "Linux";
+#endif
+    systemStatus status(mac_address, cpu_load, os);
+    systemInfo info(status, parsed_result);
+    std::string serialized_result = info.serialize();
+    std::string info_topic = "innerstat/" + this->mac_address + "/info";
+    publish(NULL, info_topic.c_str(), serialized_result.length(), serialized_result.c_str());
 }
 
 void Agent::agent_routine(){
     while(true){
-        double cpu_load = get_cpu_usage();
-        std::vector<LsofItem> parsed_result = getPSbyPort(sudo_mode);
-        systemStatus status(mac_address, cpu_load);
-        systemInfo info(status, parsed_result);
-        std::string serialized_result = info.serialize();
-        publish(NULL, "innerstat/lsof", serialized_result.length(), serialized_result.c_str());
+        publishSystemInfo();
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }

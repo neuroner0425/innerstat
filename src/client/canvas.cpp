@@ -46,12 +46,22 @@ MainCanvas::~MainCanvas() {
     uppermostAreas.clear();
 }
 
-void MainCanvas::AddNewArea(const std::string& label, const ShapeType areaType) {
-    uppermostAreas.push_back(new Shape(120, 120 + uppermostAreas.size() * 40, 120, 120, this, nullptr, label, areaType));
-    
+Shape* MainCanvas::AddNewArea(const std::string& label, const ShapeType areaType) {
+    return AddNewArea(120, 120 + uppermostAreas.size() * 40, 120, 120, label, areaType);
+}
+
+Shape* MainCanvas::AddNewArea(int w, int h, const std::string& label, const ShapeType areaType) {
+    return AddNewArea(120, 120 + uppermostAreas.size() * 40, w, h, label, areaType);
+}
+
+Shape* MainCanvas::AddNewArea(int x, int y, int w, int h, const std::string& label, const ShapeType areaType) {
+    Shape* new_shape = new Shape(x, y, w, h, this, nullptr, label, areaType);
+    uppermostAreas.push_back(new_shape);
+
     UpdateAllShapesList();
     RefreshTree();
     Refresh();
+    return new_shape;
 }
 
 void MainCanvas::SaveToFile(const std::string& path) {

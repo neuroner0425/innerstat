@@ -17,10 +17,13 @@
 #include "innerstat/client/dialog.h"
 #include "innerstat/client/color_manager.h"
 #include "innerstat/client/agent_dialog.h"
+#include "innerstat/client/agent_mqtt_connection.h"
 
 #include <memory>
 
 INNERSTAT_BEGIN_NAMESPACE
+
+class AgentSelectionDialog; // Forward declaration
 
 class MainFrame : public wxBorderlessFrame {
 protected:
@@ -36,16 +39,11 @@ private:
     wxPanel* leftToolbar;
     wxPanel* mainContent;
     wxButton* addAreaBtn;
+    AgentSelectionDialog* agent_selection_dialog_ = nullptr;
     int titlebarHeight;
     int leftbarWidth = 54;
 
-    inline void addTopLevelArea(){
-        AreaProperties* area = ShowAddAreaDialog(this, 2);
-        if (area != nullptr) {
-            canvas->AddNewArea(area->label, area->areaType);
-            delete area;
-        }
-    }
+    void addTopLevelArea();
     
 public:
     /** @brief 키보드 눌림 처리 */
