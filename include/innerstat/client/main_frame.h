@@ -40,12 +40,17 @@ private:
     wxPanel* mainContent;
     wxButton* addAreaBtn;
     AgentSelectionDialog* agent_selection_dialog_ = nullptr;
+    wxTimer m_request_timer;
+    wxTimer m_update_timer;
     int titlebarHeight;
     int leftbarWidth = 54;
 
     void addTopLevelArea();
+    void OnRequestTimer(wxTimerEvent& event);
+    void OnUpdateTimer(wxTimerEvent& event);
     
 public:
+    bool isDebugMode = false;
     /** @brief 키보드 눌림 처리 */
     inline void OnKeyDown(wxKeyEvent& evt){
         printf("Key Down: %d\n", evt.GetKeyCode());

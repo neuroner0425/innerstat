@@ -17,13 +17,38 @@
 #include "innerstat/agent/system_load_info.h"
 #include "innerstat/agent/single_instance_guard.h"
 
+std::vector<int> parseJsonPortList(const std::string& payload) {
+    std::vector<int> ports;
+    std::string numbers = payload;
+    if (numbers.length() > 2) {
+        numbers = numbers.substr(1, numbers.length() - 2);
+    }
+
+    std::stringstream ss(numbers);
+    std::string item;
+    while (std::getline(ss, item, ',')) {
+        try {
+            ports.push_back(std::stoi(item));
+        } catch (...) {
+            // ignore invalid numbers
+        }
+    }
+    return ports;
+}
+
 class Agent : public mosqpp::mosquittopp {
 private:
     bool sudo_mode = false;
     std::string mac_address;
     bool connected_ = false; // on_connect에서 설정되는 플래그
     bool loop_started_ = false; // loop_start 호출 여부
+    
+    std::map<int, long> tracked_ports_; // Port -> Last Request Timestamp (seconds)
+
     void publishSystemInfo();
+    void updateTrackedPorts(const std::string& payload);
+    void checkPortTTL();
+    void checkForLogUpdates();
 
 public:
     Agent(const char* id);
@@ -49,7 +74,9 @@ void Agent::on_connect(int rc) {
     if (rc == 0) {
         std::cout << "Agent connected to broker." << std::endl;
         std::string command_topic = "innerstat/" + this->mac_address + "/command";
+        std::string request_topic = "innerstat/" + this->mac_address + "/req";
         subscribe(NULL, command_topic.c_str());
+        subscribe(NULL, request_topic.c_str());
         subscribe(NULL, "innerstat/broadcast/request_info");
         connected_ = true;
     } else {
@@ -67,6 +94,7 @@ void Agent::on_message(const struct mosquitto_message* message) {
     std::string topic = message->topic;
     std::string payload = std::string((char*)message->payload, message->payloadlen);
     std::string command_topic = "innerstat/" + this->mac_address + "/command";
+    std::string request_topic = "innerstat/" + this->mac_address + "/req";
 
     if (topic == command_topic && payload == "ps") {
         std::string result = runCommand("ps -a");
@@ -74,6 +102,48 @@ void Agent::on_message(const struct mosquitto_message* message) {
         publish(NULL, ps_topic.c_str(), result.length(), result.c_str());
     } else if (topic == "innerstat/broadcast/request_info") {
         publishSystemInfo();
+    } else if (topic == request_topic) {
+        updateTrackedPorts(payload);
+    }
+}
+
+void Agent::updateTrackedPorts(const std::string& payload) {
+    std::vector<int> ports = parseJsonPortList(payload);
+    long current_time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    for (int port : ports) {
+        tracked_ports_[port] = current_time;
+    }
+}
+
+void Agent::checkPortTTL() {
+    long current_time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    const int ttl = 20; // 20 seconds
+    for (auto it = tracked_ports_.begin(); it != tracked_ports_.end(); ) {
+        if (current_time - it->second > ttl) {
+            it = tracked_ports_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void Agent::checkForLogUpdates() {
+    // This is a placeholder for the complex file monitoring logic.
+    // For now, it will generate a fake log for a random tracked port every so often.
+    if (tracked_ports_.empty()) {
+        return;
+    }
+
+    int random_chance = rand() % 100;
+    if (random_chance < 20) { // 20% chance each second
+        int port_index = rand() % tracked_ports_.size();
+        auto it = tracked_ports_.begin();
+        std::advance(it, port_index);
+        int port = it->first;
+
+        std::string log_topic = "innerstat/" + mac_address + "/" + std::to_string(port) + "/log";
+        std::string log_message = "This is a simulated log message for port " + std::to_string(port);
+        publish(NULL, log_topic.c_str(), log_message.length(), log_message.c_str());
     }
 }
 
@@ -96,8 +166,11 @@ void Agent::publishSystemInfo() {
 }
 
 void Agent::agent_routine(){
+    srand(time(0)); // Seed for random log generation
     while(true){
         publishSystemInfo();
+        checkPortTTL();
+        checkForLogUpdates();
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }

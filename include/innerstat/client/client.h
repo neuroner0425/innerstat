@@ -60,6 +60,14 @@ enum class UserAction {
   Resizing,
   Panning
 };
+
+// Shape의 모니터링 상태
+enum class ShapeStatus {
+  Normal,
+  Attention,
+  Warning,
+  Lost
+};
 INNERSTAT_END_NAMESPACE
 
 #endif

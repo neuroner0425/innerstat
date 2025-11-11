@@ -27,7 +27,7 @@ public:
     wxPoint GetScreenPosition(const wxRect& rect) const;
 
     /** @brief 포트를 화면에 원 형태로 그리기 */
-    void Draw(wxDC& dc, const wxRect& rect) const;
+    void Draw(wxGraphicsContext& gc, const wxRect& shapeRect) const;
 };
 INNERSTAT_END_NAMESPACE
 #endif

@@ -30,6 +30,25 @@ public:
     std::vector<Port> ports;
     std::vector<Shape*> childAreas;
 
+    // Monitoring Properties
+    ShapeStatus status = ShapeStatus::Normal;
+    std::string mac_address; // For OS type
+
+    // OS Shape Thresholds
+    double attention_threshold_cpu = 70.0;
+    double warning_threshold_cpu = 90.0;
+    int loss_threshold_seconds = 5;
+    
+    // PS Shape Thresholds
+    int port_number = 0; // For PS type
+    int attention_threshold_log = 50;
+    int warning_threshold_log = 100;
+    int loss_threshold_seconds_ps = 5;
+
+    // Live Tracking Data
+    wxLongLong last_seen_timestamp;
+    std::vector<wxLongLong> log_timestamps;
+
 private:
     double* scale;
     wxPoint* offset;
@@ -44,7 +63,7 @@ public:
     ~Shape();
     
     /** @brief 도형을 그리는 함수 */
-    void Draw(wxDC& dc) const;
+    void Draw(wxGraphicsContext& gc) const;
     
     
     /* ========== 자식과 관련된 함수들 ========== */

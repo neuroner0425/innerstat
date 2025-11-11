@@ -13,12 +13,13 @@ wxPoint Port::GetScreenPosition(const wxRect& rect) const{
     );
 }
 
-void Port::Draw(wxDC& dc, const wxRect& rect) const{
+void Port::Draw(wxGraphicsContext& gc, const wxRect& rect) const{
     double s = canvas->scale;
     int width = (int)(8 * s);
-    dc.SetBrush(wxBrush(wxColour(100, 100, 255)));
-    dc.SetPen(wxPen(*wxBLACK, std::max(1, (int)(1 * s))));
-    dc.DrawRectangle(GetScreenPosition(rect) - wxPoint(width / 2, width / 2), wxSize(width, width));
+    gc.SetBrush(wxBrush(wxColour(100, 100, 255)));
+    gc.SetPen(wxPen(*wxBLACK, std::max(1, (int)(1 * s))));
+    wxPoint pos = GetScreenPosition(rect);
+    gc.DrawRectangle(pos.x - width / 2, pos.y - width / 2, width, width);
 }
 
 INNERSTAT_END_NAMESPACE

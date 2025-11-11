@@ -3,8 +3,13 @@
 #endif
 
 #include <wx/wx.h>
-#include <wx/treectrl.h>
+#include "innerstat/client/main_frame.h"
+#include "innerstat/client/canvas.h"
+#include "innerstat/client/agent_mqtt_connection.h"
+#include "innerstat/client/AgentSelectionDialog.h"
 #include <wx/splitter.h>
+#include <wx/treectrl.h>
+#include <regex>
 #include <wx/srchctrl.h>
 #include <wxbf/borderless_frame.h>
 #include <wxbf/system_buttons.h>
@@ -20,6 +25,9 @@
 #include "innerstat/client/agent_dialog.h"
 #include "innerstat/client/AgentSelectionDialog.h"
 #include "no_sash_splitter.h"
+
+#include "innerstat/client/shape.h"
+#include <map>
 
 INNERSTAT_BEGIN_NAMESPACE
 
@@ -44,6 +52,16 @@ MainFrame::MainFrame()
         canvas->OnTreeLeftDClick(evt.GetItem());
     });
 
+    // Setup and start the request timer
+    m_request_timer.SetOwner(this);
+    Bind(wxEVT_TIMER, &MainFrame::OnRequestTimer, this, m_request_timer.GetId());
+    m_request_timer.Start(5000);
+
+    // Setup and start the status update timer
+    m_update_timer.SetOwner(this);
+    Bind(wxEVT_TIMER, &MainFrame::OnUpdateTimer, this, m_update_timer.GetId());
+    m_update_timer.Start(1000); // Update status every second
+
     wxSizeEvent dummy;
     OnSize(dummy);
 }
@@ -60,6 +78,165 @@ void MainFrame::addTopLevelArea() {
             agent_selection_dialog_ = nullptr;
             event.Skip(); // Allow the dialog's own handler to run and destroy it
         });
+    }
+}
+
+void MainFrame::OnUpdateTimer(wxTimerEvent& event) {
+    if (!canvas) return;
+
+    auto mqtt_conn = AgentMqttConnection::GetInstance();
+    const auto& all_agent_data = mqtt_conn->GetAgentDataMap();
+    const auto& all_log_timestamps = mqtt_conn->GetLogTimestamps();
+    const auto& all_shapes = canvas->GetAllShapes();
+    long long now = wxGetUTCTimeMillis().GetValue();
+
+    bool needs_refresh = false;
+
+    for (Shape* shape : all_shapes) {
+        ShapeStatus old_status = shape->status;
+
+        if (shape->type == ShapeType::OS) {
+            auto it = all_agent_data.find(shape->mac_address);
+            if (it == all_agent_data.end()) {
+                // No info ever received for this MAC
+                if ((now - shape->last_seen_timestamp.GetValue()) > (shape->loss_threshold_seconds * 1000)) {
+                    shape->status = ShapeStatus::Lost;
+                }
+            } else {
+                // We have data for this MAC, check how old it is
+                const systemInfo& info = it->second.first;
+                const wxLongLong& last_message_timestamp = it->second.second;
+                long long last_msg_time = last_message_timestamp.GetValue();
+                long long threshold = shape->loss_threshold_seconds * 1000;
+
+                if ((now - last_msg_time) > threshold) {
+                    shape->status = ShapeStatus::Lost;
+                } else {
+                    // It's not lost, check other statuses
+                    if (info.status.cpu_usage > shape->warning_threshold_cpu) {
+                        shape->status = ShapeStatus::Warning;
+                    } else if (info.status.cpu_usage > shape->attention_threshold_cpu) {
+                        shape->status = ShapeStatus::Attention;
+                    } else {
+                        shape->status = ShapeStatus::Normal;
+                    }
+                }
+            }
+        } else if (shape->type == ShapeType::PS) {
+            if (!shape->parent || shape->parent->type != ShapeType::OS) {
+                continue; 
+            }
+
+            // If parent is Lost, child is also Lost.
+            if (shape->parent->status == ShapeStatus::Lost) {
+                shape->status = ShapeStatus::Lost;
+            } else {
+                // Parent is NOT Lost. Check for this PS shape's own status.
+                auto agent_it = all_agent_data.find(shape->parent->mac_address);
+                if (agent_it == all_agent_data.end()) {
+                    // This case should be covered by parent status check, but as a safeguard:
+                    if ((now - shape->last_seen_timestamp.GetValue()) > (shape->loss_threshold_seconds_ps * 1000)) {
+                        shape->status = ShapeStatus::Lost;
+                    }
+                    continue;
+                }
+
+                // Check if the port is in the lsof list from the recent parent data
+                const auto& lsof_items = agent_it->second.first.lsof_items;
+                bool found_in_lsof = false;
+                try {
+                    std::regex port_regex(":" + std::to_string(shape->port_number) + "([^0-9]|$)");
+                    for (const auto& item : lsof_items) {
+                        if (std::regex_search(item.name, port_regex)) {
+                            found_in_lsof = true;
+                            break;
+                        }
+                    }
+                } catch (const std::regex_error& e) {
+                    // In case of a bad regex, just fallback to old behavior
+                }
+                
+                if (found_in_lsof) {
+                    // Port is active. Update timestamp and check log thresholds.
+                    shape->last_seen_timestamp = now;
+                    
+                    int log_count = 0;
+                    auto log_mac_it = all_log_timestamps.find(shape->parent->mac_address);
+                    if (log_mac_it != all_log_timestamps.end()) {
+                        auto log_port_it = log_mac_it->second.find(shape->port_number);
+                        if (log_port_it != log_mac_it->second.end()) {
+                            const auto& timestamps = log_port_it->second;
+                            for (auto rit = timestamps.rbegin(); rit != timestamps.rend(); ++rit) {
+                                if ((now - rit->GetValue()) < 60000) { // 60 seconds
+                                    log_count++;
+                                } else {
+                                    break; // Timestamps are ordered
+                                }
+                            }
+                        }
+                    }
+
+                    if (log_count > shape->warning_threshold_log) {
+                        shape->status = ShapeStatus::Warning;
+                    } else if (log_count > shape->attention_threshold_log) {
+                        shape->status = ShapeStatus::Attention;
+                    } else {
+                        shape->status = ShapeStatus::Normal;
+                    }
+                } else {
+                    // Port is NOT in the lsof list, even though parent is alive.
+                    // Check how long it has been missing.
+                    if ((now - shape->last_seen_timestamp.GetValue()) > (shape->loss_threshold_seconds_ps * 1000)) {
+                        shape->status = ShapeStatus::Lost;
+                    }
+                    // If missing for less than the threshold, retain previous status.
+                }
+            }
+        }
+
+        if (old_status != shape->status) {
+            needs_refresh = true;
+        }
+    }
+
+    if (needs_refresh) {
+        canvas->Refresh();
+    }
+}
+
+void MainFrame::OnRequestTimer(wxTimerEvent& event) {
+    if (!canvas) return;
+
+    const auto& allShapes = canvas->GetAllShapes();
+    std::map<std::string, std::vector<int>> requests; // Map MAC -> list of ports
+
+    // First pass: collect all ports for each OS shape
+    for (Shape* shape : allShapes) {
+        if (shape->type == ShapeType::PS && shape->parent && shape->parent->type == ShapeType::OS) {
+            if (!shape->parent->mac_address.empty() && shape->port_number > 0) {
+                requests[shape->parent->mac_address].push_back(shape->port_number);
+            }
+        }
+    }
+
+    // Second pass: send the requests
+    auto mqtt_conn = AgentMqttConnection::GetInstance();
+    for (const auto& pair : requests) {
+        const std::string& mac = pair.first;
+        const std::vector<int>& ports = pair.second;
+
+        // Construct JSON: [port1, port2, ...]
+        std::string payload = "[";
+        for (size_t i = 0; i < ports.size(); ++i) {
+            payload += std::to_string(ports[i]);
+            if (i < ports.size() - 1) {
+                payload += ",";
+            }
+        }
+        payload += "]";
+
+        std::string topic = "innerstat/" + mac + "/req";
+        mqtt_conn->publish(NULL, topic.c_str(), payload.length(), payload.c_str());
     }
 }
 

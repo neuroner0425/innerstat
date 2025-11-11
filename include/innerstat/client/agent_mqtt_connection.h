@@ -17,7 +17,8 @@ public:
     std::string GetLastAgentMac() const { return last_agent_mac_; }
     std::vector<std::string> GetKnownAgents() const { return known_agents_; }
     systemInfo GetAgentData(const std::string& mac);
-    const std::map<std::string, systemInfo>& GetAgentDataMap() const { return agent_data_; }
+    const std::map<std::string, std::pair<systemInfo, wxLongLong>>& GetAgentDataMap() const { return agent_data_; }
+    const std::map<std::string, std::map<int, std::vector<wxLongLong>>>& GetLogTimestamps() const { return all_log_timestamps_; }
 
     void SetAgentChangeHandler(wxEvtHandler* handler) { agent_change_handler_ = handler; }
 
@@ -40,7 +41,8 @@ private:
     wxEvtHandler* agent_change_handler_ = nullptr;
     std::vector<std::string> known_agents_;
     std::string last_agent_mac_;
-    std::map<std::string, systemInfo> agent_data_;
+    std::map<std::string, std::pair<systemInfo, wxLongLong>> agent_data_;
+    std::map<std::string, std::map<int, std::vector<wxLongLong>>> all_log_timestamps_;
 };
 
 #endif // INNERSTAT_CLIENT_AGENT_MQTT_CONNECTION_H

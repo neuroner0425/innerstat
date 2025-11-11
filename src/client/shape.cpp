@@ -1,15 +1,8 @@
-#ifndef INNERSTAT_CLIENT_BASE_H
-    #include "innerstat/client/client.h"
-#endif
-
 #include "innerstat/client/shape.h"
 #include "innerstat/client/canvas.h"
-#include "innerstat/client/port.h"
-#include "innerstat/client/dialog.h"
-#include "innerstat/client/color_manager.h"
-
-#include <wx/textdlg.h>
-#include <wx/textctrl.h>
+#include "innerstat/client/PropertyDialog.h"
+#include "innerstat/client/client.h" 
+#include "innerstat/client/color_manager.h" // Include for color constants
 #include <wx/spinctrl.h>
 #include <wx/choice.h>
 #include <sstream>
@@ -20,11 +13,21 @@
 INNERSTAT_BEGIN_NAMESPACE
 
 Shape::Shape(int x, int y, int w, int h, 
-    MainCanvas* c, Shape* p, const std::string& l,
-    const ShapeType& t, int portCount)
-    : rect(wxPoint(x,y), wxSize(w, h)), canvas(c), parent(p), label(l),
-        scale(&(canvas->scale)), offset(&(canvas->offset)), type(t) {
+    MainCanvas* canvas, Shape* parent, const std::string& label,
+    const ShapeType& Type, int portCount)
+    : rect(wxPoint(x,y), wxSize(w, h)), canvas(canvas), parent(parent), label(label),
+        scale(&(this->canvas->scale)), offset(&(this->canvas->offset)), type(Type) {
     SetPortCount(portCount);
+    last_seen_timestamp = wxGetUTCTimeMillis();
+
+    if (type == ShapeType::OS) {
+        size_t first_paren = label.find('(');
+        if (first_paren != std::string::npos) {
+            mac_address = label.substr(0, first_paren);
+        } else {
+            mac_address = label;
+        }
+    }
 }
 
 Shape::~Shape(){
@@ -34,79 +37,91 @@ Shape::~Shape(){
     childAreas.clear();
 }
 
-void Shape::Draw(wxDC& dc) const {
-    wxFont oldFont = dc.GetFont();
-    
+void Shape::Draw(wxGraphicsContext& gc) const {
     wxRect screenRect(GetScreenRect());
-    int w = (int)(rect.width * (*scale));
-    int h = (int)(rect.height * (*scale));
     
+    // 1. Draw base shape
+    wxColour fillColour;
     switch (this->GetType())
     {
-    case ShapeType::OS:
-        dc.SetBrush(isSelected ? C_OS_SELECTED_FILL : C_OS_FILL);
-        break;
-    case ShapeType::PS:
-        dc.SetBrush(isSelected ? C_PS_SELECTED_FILL : C_PS_FILL);
-        break;
-    default:
-        dc.SetBrush(isSelected ? C_SHAPE_SELECTED_FILL : C_SHAPE_FILL);
-        break;
+        case ShapeType::OS:
+            fillColour = isSelected ? C_OS_SELECTED_FILL : C_OS_FILL;
+            break;
+        case ShapeType::PS:
+            fillColour = isSelected ? C_PS_SELECTED_FILL : C_PS_FILL;
+            break;
+        default:
+            fillColour = isSelected ? C_SHAPE_SELECTED_FILL : C_SHAPE_FILL;
+            break;
     }
-    if(isSelected) dc.SetPen(wxPen(C_SHAPE_SELECTED_BORDER, std::max(1, (int)(2 * (*scale)))));
-    else dc.SetPen(wxPen(C_SHAPE_BORDER, std::max(1, (int)(2 * (*scale)))));
-    dc.DrawRoundedRectangle(screenRect, (int)(10 * (*scale)));
+    wxColour borderColour = isSelected ? C_SHAPE_SELECTED_BORDER : C_SHAPE_BORDER;
+    gc.SetBrush(wxBrush(fillColour));
+    gc.SetPen(wxPen(borderColour, std::max(1, (int)(2 * (*scale)))));
+    gc.DrawRoundedRectangle(screenRect.GetX(), screenRect.GetY(), screenRect.GetWidth(), screenRect.GetHeight(), (int)(10 * (*scale)));
+
+    // 2. Draw status hatching on top
+    ShapeStatus current_status = this->status;
+    if (current_status != ShapeStatus::Normal) {
+        wxColour hatchColour;
+        if (current_status == ShapeStatus::Attention) hatchColour.Set(255, 165, 0, 192); // Orange, thicker alpha
+        else if (current_status == ShapeStatus::Warning) hatchColour.Set(255, 0, 0, 192);   // Red, thicker alpha
+        else if (current_status == ShapeStatus::Lost) hatchColour.Set(0, 0, 0, 192);      // Black, thicker alpha
+
+        gc.SetBrush(wxBrush(hatchColour, wxBRUSHSTYLE_CROSSDIAG_HATCH));
+        gc.SetPen(*wxTRANSPARENT_PEN);
+        gc.DrawRoundedRectangle(screenRect.GetX(), screenRect.GetY(), screenRect.GetWidth(), screenRect.GetHeight(), (int)(10 * (*scale)));
+    }
+    
+    // 3. Draw Text
+    std::string display_label = this->label;
+    if (this->GetType() == ShapeType::PS) {
+        display_label += ":" + std::to_string(this->port_number);
+    }
+
+    std::string debug_label = display_label;
+    if (canvas->isdebug) {
+        if (current_status == ShapeStatus::Normal) debug_label = "[N] " + debug_label;
+        else if (current_status == ShapeStatus::Attention) debug_label = "[A] " + debug_label;
+        else if (current_status == ShapeStatus::Warning) debug_label = "[W] " + debug_label;
+        else if (current_status == ShapeStatus::Lost) debug_label = "[L] " + debug_label;
+    }
     
     wxFont font((int)(9 * (*scale)), wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
-    dc.SetFont(font);
-    dc.SetTextForeground(C_SHAPE_LABEL);
-    dc.DrawText(label, screenRect.GetPosition() + wxPoint((int)(5 * (*scale)), (int)(5 * (*scale)) + h));
-    dc.SetFont(oldFont);
+    gc.SetFont(font, C_SHAPE_LABEL);
     
+    // Use GetTextExtent to calculate position for centering or other alignment if needed
+    double text_width, text_height;
+    gc.GetTextExtent(debug_label, &text_width, &text_height);
+    gc.DrawText(debug_label, screenRect.GetPosition().x + 5, screenRect.GetPosition().y + screenRect.GetHeight() + 5);
+
+    // 4. Draw Ports
     for (const Port& port : ports) {
-        port.Draw(dc, screenRect);
+        port.Draw(gc, screenRect);
     }
     
+    // 5. Draw selection handle
     if(isSelected){
-        dc.SetPen(wxPen(*wxBLACK, 1));
+        gc.SetPen(wxPen(*wxBLACK, 1));
+        gc.SetBrush(*wxBLACK_BRUSH);
         const int handleScale = 6;
-        wxRect handle(screenRect.GetBottomRight() .x - handleScale / 2, screenRect.GetBottomRight() .y - handleScale / 2, handleScale, handleScale);
-        dc.DrawRectangle(handle);
+        gc.DrawRectangle(screenRect.GetBottomRight().x - handleScale / 2, screenRect.GetBottomRight().y - handleScale / 2, handleScale, handleScale);
     }
 }
 
-void Shape::AddChildArea(Shape* area) {
+void Shape::AddChildArea(Shape* area){
     childAreas.push_back(area);
-    canvas->UpdateAllShapesList();
-    canvas->RefreshTree();
-    canvas->Refresh();
 }
 
-void Shape::OpenPropertyDialog() {
-    AreaProperties* ret = ShowAreaPropertyDialog(canvas, this);
-
-    if(ret == nullptr) return;
-
-    this->label = ret->label;
-    type = ret->areaType;
-    SetPortCount(ret->portCount);
-    delete ret;
-
-    canvas->RefreshTree();
-    canvas->Refresh();
+void Shape::OpenPropertyDialog(){
+    PropertyDialog dialog(canvas, this);
+    if (dialog.ShowModal() == wxID_OK) {
+        canvas->Refresh();
+    }
 }
 
 void Shape::OpenAddShapeDialog() {
-    AreaProperties* ret = ShowAddAreaDialog(canvas, 1);
-
-    if(ret == nullptr) return;
-
-    int offsetX = childAreas.size() * 40;
-    int offsetY = 0;
-    Shape* newArea = new Shape(offsetX, offsetY, 40, 40, canvas, this, ret->label, ret->areaType);
-    this->AddChildArea(newArea);
-
-    delete ret;
+    // This function is deprecated and its logic moved to AgentSelectionDialog.
+    // It can be removed or left empty.
 }
 
 void Shape::SetPortCount(int count) {
@@ -162,7 +177,7 @@ ShapeHandle Shape::HitTestShape(wxPoint& mouse) {
 
 std::string Shape::Serialize() const {
     // TODO
-    return nullptr;
+    return "";
 }
 
 Shape* Shape::Deserialize(const std::string& line, MainCanvas* canvas) {

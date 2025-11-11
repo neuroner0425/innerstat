@@ -17,7 +17,7 @@ public:
 private:
     wxTextCtrl* label_ctrl_;
     wxCheckListBox* process_list_box_;
-    const std::vector<LsofItem>& all_processes_;
+    std::vector<LsofItem> displayable_processes_;
 };
 
 #endif // INNERSTAT_CLIENT_ADDSHAPEDIALOG_H

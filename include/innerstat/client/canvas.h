@@ -80,6 +80,9 @@ public:
     
     /** @brief */
     static wxPoint SnapToGrid(const wxPoint& pt);
+
+    /** @brief 모든 Shape 목록 반환 */
+    const std::vector<Shape*>& GetAllShapes() const { return allShapes; }
     
 private:
     /** @brief Shape의 포인터로 선택 */

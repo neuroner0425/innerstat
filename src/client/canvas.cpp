@@ -35,6 +35,7 @@ MainCanvas::MainCanvas(wxWindow* parent, MainFrame* frame)
     Bind(wxEVT_MOTION, &MainCanvas::OnMotion, this);
     Bind(wxEVT_LEFT_DCLICK, &MainCanvas::OnLeftDClick, this);
     Bind(wxEVT_IDLE, &MainCanvas::OnFirstIdle, this);
+    isdebug = frame->isDebugMode;
 #ifdef __WXOSX__
     Bind(wxEVT_MAGNIFY, &MainCanvas::OnMagnify, this);
 #endif
@@ -122,7 +123,7 @@ void MainCanvas::OnPaint(wxPaintEvent&) {
 
     // 도형
     for (const Shape* s : allShapes)
-        s->Draw(dc);
+        s->Draw(*gc);
     
     // dragging 및 resizing 미리보기
     if (selectedShape && (action == UserAction::Dragging || action == UserAction::Resizing)) {
@@ -454,7 +455,12 @@ void MainCanvas::DraggingShape(Shape* shape, wxPoint& mouse){
 }
 
 void MainCanvas::AppendAreaToTree(wxTreeItemId parentId, Shape* area) {
-    wxString label = wxString::Format("%s [%s]", area->label, area->GetTypeString());
+    wxString label;
+    if (area->GetType() == ShapeType::PS) {
+        label = wxString::Format("%s:%d [%s]", area->label, area->port_number, area->GetTypeString());
+    } else {
+        label = wxString::Format("%s [%s]", area->label, area->GetTypeString());
+    }
     wxTreeItemId areaId = frame->shapeTree->AppendItem(parentId, label);
     shapeMap[areaId] = area;
 
