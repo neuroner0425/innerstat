@@ -1,8 +1,6 @@
 #include "innerstat/slapp/cpu.h"
-
+#include "innerstat/slapp/main.h" // For MainFrame
 #include <wx/sizer.h>
-
-#include <fstream>
 
 enum { ID_CPU_START = wxID_HIGHEST+100, ID_CPU_STOP };
 
@@ -11,8 +9,8 @@ wxBEGIN_EVENT_TABLE(CpuLoadPanel, wxPanel)
     EVT_BUTTON(ID_CPU_STOP, CpuLoadPanel::OnStop)
 wxEND_EVENT_TABLE()
 
-CpuLoadPanel::CpuLoadPanel(wxWindow* parent)
-    : wxPanel(parent), m_running(false)
+CpuLoadPanel::CpuLoadPanel(wxWindow* parent, MainFrame* mainFrame)
+    : wxPanel(parent), m_parentFrame(mainFrame), m_running(false)
 {
     wxStaticBoxSizer* sbox = new wxStaticBoxSizer(wxVERTICAL, this, L"CPU 부하");
     wxBoxSizer* hbox = new wxBoxSizer(wxHORIZONTAL);
@@ -44,8 +42,8 @@ CpuLoadPanel::~CpuLoadPanel() {
 }
 
 void CpuLoadPanel::OnStart(wxCommandEvent&) {
-    std::ofstream("cpu_overload_status.txt") << "ON";
     if (!m_running) {
+        m_parentFrame->UpdateLoadStatus("cpu", true);
         int cores = m_spinNumCores->GetValue();
         if (cores <= 0) return;
         m_running = true;
@@ -60,7 +58,7 @@ void CpuLoadPanel::OnStart(wxCommandEvent&) {
     }
 }
 void CpuLoadPanel::OnStop(wxCommandEvent&) {
-    std::ofstream("cpu_overload_status.txt") << "OFF";
+    m_parentFrame->UpdateLoadStatus("cpu", false);
     m_running = false;
     for(auto& th : m_threads)
         if (th.joinable()) th.join();

@@ -1,20 +1,25 @@
-#pragma once
 #include <wx/panel.h>
 #include <wx/button.h>
 #include <wx/textctrl.h>
 #include <wx/stattext.h>
+#include <wx/event.h>
 
 #include <vector>
 #include <thread>
 #include <atomic>
 #include <mutex>
 
+wxDECLARE_EVENT(EVT_MEM_UPDATE, wxCommandEvent);
+
+class MainFrame; // Forward declaration
+
 class MemoryLoadPanel : public wxPanel {
 public:
-    MemoryLoadPanel(wxWindow* parent);
+    MemoryLoadPanel(wxWindow* parent, MainFrame* mainFrame);
     ~MemoryLoadPanel();
 
 private:
+    MainFrame* m_parentFrame;
     wxTextCtrl* m_txtSizeMB;
     wxButton* m_btnAlloc;
     wxButton* m_btnClear;
@@ -37,6 +42,7 @@ private:
     void OnClear(wxCommandEvent& evt);
     void OnTimedStart(wxCommandEvent& evt);
     void OnTimedStop(wxCommandEvent& evt);
+    void OnUpdateUI(wxCommandEvent& evt);
     void TimedAllocTask();
     void AddMemory(size_t sz);
 

@@ -1,4 +1,5 @@
 #include "innerstat/slapp/memory.h"
+#include "innerstat/slapp/main.h" // For MainFrame
 
 #include <wx/msgdlg.h>
 #include <wx/sizer.h>
@@ -7,15 +8,18 @@
 
 enum { ID_MEM_ALLOC = wxID_HIGHEST+200, ID_MEM_CLEAR, ID_MEM_TIMED_START, ID_MEM_TIMED_STOP };
 
+wxDEFINE_EVENT(EVT_MEM_UPDATE, wxCommandEvent);
+
 wxBEGIN_EVENT_TABLE(MemoryLoadPanel, wxPanel)
     EVT_BUTTON(ID_MEM_ALLOC, MemoryLoadPanel::OnAlloc)
     EVT_BUTTON(ID_MEM_CLEAR, MemoryLoadPanel::OnClear)
     EVT_BUTTON(ID_MEM_TIMED_START, MemoryLoadPanel::OnTimedStart)
     EVT_BUTTON(ID_MEM_TIMED_STOP, MemoryLoadPanel::OnTimedStop)
+    EVT_COMMAND(wxID_ANY, EVT_MEM_UPDATE, MemoryLoadPanel::OnUpdateUI)
 wxEND_EVENT_TABLE()
 
-MemoryLoadPanel::MemoryLoadPanel(wxWindow* parent)
-    : wxPanel(parent), m_totalBytes(0), m_timedRunning(false)
+MemoryLoadPanel::MemoryLoadPanel(wxWindow* parent, MainFrame* mainFrame)
+    : wxPanel(parent), m_parentFrame(mainFrame), m_totalBytes(0), m_timedRunning(false)
 {
     wxStaticBoxSizer* sbox = new wxStaticBoxSizer(wxVERTICAL, this, L"메모리 부하(누수)");
     wxBoxSizer* row1 = new wxBoxSizer(wxHORIZONTAL);
@@ -57,19 +61,35 @@ MemoryLoadPanel::~MemoryLoadPanel() {
     m_totalBytes = 0;
 }
 
+// This function is now thread-safe as it doesn't touch UI components.
 void MemoryLoadPanel::AddMemory(size_t sz) {
     std::lock_guard<std::mutex> lock(m_mutex);
+    bool success = false;
     try {
         char* p = new char[sz];
         for (size_t i=0; i<sz; i+=4096) p[i] = (char)(i%256);
         m_blocks.push_back(p);
         m_totalBytes += sz;
-        m_lblTotalAlloc->SetLabel(wxString::Format(L"총 할당: %zu MB", m_totalBytes/(1024*1024)));
-        m_lblStatus->SetLabel(L"상태: 할당됨");
+        success = true;
     } catch (...) {
+        success = false;
+    }
+
+    wxCommandEvent event(EVT_MEM_UPDATE);
+    event.SetString(success ? "success" : "fail");
+    wxQueueEvent(this, event.Clone());
+}
+
+void MemoryLoadPanel::OnUpdateUI(wxCommandEvent& evt) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_lblTotalAlloc->SetLabel(wxString::Format(L"총 할당: %zu MB", m_totalBytes/(1024*1024)));
+    if (evt.GetString() == "success") {
+        m_lblStatus->SetLabel(L"상태: 할당됨");
+    } else if (evt.GetString() == "fail") {
         m_lblStatus->SetLabel(L"상태: 할당 실패");
     }
 }
+
 void MemoryLoadPanel::OnAlloc(wxCommandEvent&) {
     long mb=0; m_txtSizeMB->GetValue().ToLong(&mb);
     if (mb<=0) {
@@ -88,7 +108,7 @@ void MemoryLoadPanel::OnClear(wxCommandEvent&) {
     m_lblStatus->SetLabel(L"상태: 메모리 해제됨");
 }
 void MemoryLoadPanel::OnTimedStart(wxCommandEvent&) {
-    std::ofstream("mem_overload_status.txt") << "ON";
+    m_parentFrame->UpdateLoadStatus("memory", true);
     long mb=0, sec=0;
     m_txtSizeMB->GetValue().ToLong(&mb); m_txtIntervalSec->GetValue().ToLong(&sec);
     if (mb<=0 || sec<=0) {
@@ -102,7 +122,7 @@ void MemoryLoadPanel::OnTimedStart(wxCommandEvent&) {
     m_timedThread = std::thread(&MemoryLoadPanel::TimedAllocTask, this);
 }
 void MemoryLoadPanel::OnTimedStop(wxCommandEvent&) {
-    std::ofstream("mem_overload_status.txt") << "OFF";
+    m_parentFrame->UpdateLoadStatus("memory", false);
     m_timedRunning = false;
     if (m_timedThread.joinable()) m_timedThread.join();
     m_btnTimedStart->Enable(); m_btnTimedStop->Disable();

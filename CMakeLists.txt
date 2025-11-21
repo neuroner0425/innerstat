@@ -55,6 +55,7 @@ if(BUILD_CLIENT OR BUILD_SL)
     set(GUI_TP_INC
         ${CMAKE_SOURCE_DIR}/third_party/wxborderlessframe/include
         ${CMAKE_SOURCE_DIR}/third_party/wxnosashsplitter/include
+        ${CMAKE_SOURCE_DIR}/third_party/wx_custum_titlebar_frame/include
     )
 
     set(wxWidgets_CONFIG_EXECUTABLE "/opt/wxWidgets/build-cocoa-debug/wx-config")
@@ -62,6 +63,7 @@ if(BUILD_CLIENT OR BUILD_SL)
     include(${wxWidgets_USE_FILE})
 
     add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/wxborderlessframe)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/wx_custum_titlebar_frame)
 
     function(add_my_wx_app target src_glob)
         glob_src(SRC "${src_glob}")
@@ -70,7 +72,7 @@ if(BUILD_CLIENT OR BUILD_SL)
             ${PROJECT_INCLUDE_DIR}
             ${GUI_TP_INC}
         )
-        target_link_libraries(${target} PRIVATE wxBorderlessFrame ${wxWidgets_LIBRARIES})
+        target_link_libraries(${target} PRIVATE wxBorderlessFrame wx_custom_titlebar_frame ${wxWidgets_LIBRARIES})
         if(NOT APPLE)
             target_link_options(${target} PRIVATE -static)
         endif()

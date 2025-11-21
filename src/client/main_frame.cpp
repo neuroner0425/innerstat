@@ -35,11 +35,10 @@ INNERSTAT_BEGIN_NAMESPACE
 bool MainFrame::keyPressed[400] = { false };
 
 MainFrame::MainFrame()
-    :wxBorderlessFrame(nullptr, wxID_ANY, L"Inner Stat", wxDefaultPosition, wxSize(1100, 700)), gripper(wxWindowGripper::Create()){
+    :wxCustomTitleBarFrame(nullptr, wxID_ANY, L"Inner Stat", wxDefaultPosition, wxSize(1100, 700)), gripper(wxWindowGripper::Create()){
     
     SetUpGUI();
     
-    Bind(wxEVT_PAINT, &MainFrame::OnPaint, this);
     Bind(wxEVT_SIZE, &MainFrame::OnSize, this);
 
     addAreaBtn->Bind(wxEVT_BUTTON, [=](wxCommandEvent &) {
@@ -241,67 +240,25 @@ void MainFrame::OnRequestTimer(wxTimerEvent& event) {
 }
 
 void MainFrame::SetUpGUI(){
-    this->SetBorderColour(C_TITLE_BAR_BACKGROUND);
-
-#ifndef __WXOSX__
-    systemButtons = wxSystemButtonsFactory::CreateSystemButtons(this);
-    // On Windows/Linux, use larger rectangular buttons matching the app style
-    systemButtons->SetButtonSize(wxSize(46, 35));
-    systemButtons->UpdateState();
-    SetSystemButtonColor();
-    titlebarHeight = systemButtons->GetTotalSize().y;
-#else
-    // macOS: use native traffic lights, no custom-drawn buttons
-    systemButtons = nullptr;
-    titlebarHeight = FromDIP(35);
-#endif
-
-    menuBar = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(-1, titlebarHeight));
-    menuBar->SetBackgroundColour(C_TITLE_BAR_BACKGROUND);
-
-    wxBoxSizer* menuSizer = new wxBoxSizer(wxHORIZONTAL);
-
-#ifndef __WXOSX__
-    wxButton* btnFile = makeMenuBtn(L"파일(F)", {L"새 파일", L"열기", L"저장", L"다른 이름으로 저장"});
-    wxButton* btnEdit = makeMenuBtn(L"편집(E)", {L"실행 취소", L"다시 실행", L"복사", L"붙여넣기"});
-    wxButton* btnSelect = makeMenuBtn(L"선택 영역(S)", {L"모두 선택", L"줄 선택", L"블록 선택"});
-
-    menuSizer->Add(btnFile,   0, wxLEFT | wxALIGN_CENTER_VERTICAL);
-    menuSizer->Add(btnEdit,   0, wxLEFT | wxALIGN_CENTER_VERTICAL);
-    menuSizer->Add(btnSelect, 0, wxLEFT | wxALIGN_CENTER_VERTICAL);
-#elif __WXOSX__
-    wxMenu *fileMenu = new wxMenu();
-    fileMenu->Append(wxID_OPEN, L"열기(&O)");
-    fileMenu->Append(wxID_SAVE, L"저장(&S)");
-
-    wxMenu *editMenu = new wxMenu();
-    editMenu->Append(wxID_UNDO, L"실행 취소(&Z)");
-    editMenu->Append(wxID_REDO, L"다시 실행(&Y)");
-    editMenu->Append(wxID_COPY, L"복사(&C)");
-    editMenu->Append(wxID_PASTE, L"붙여넣기(&V)");
-
-    wxMenu *selectMenu = new wxMenu();
-    selectMenu->Append(wxID_SELECTALL, L"모두 선택(&A)");
-    selectMenu->Append(wxID_ANY, L"줄 선택");
-    selectMenu->Append(wxID_ANY, L"블록 선택");
-
-    wxMenuBar *menu = new wxMenuBar();
-    menu->Append(fileMenu, L"파일");
-    menu->Append(editMenu, L"편집");
-    menu->Append(selectMenu, L"선택 영역");
-    SetMenuBar(menu);
-#endif
-    menuBar->SetSizer(menuSizer);
-
-#ifdef __WXOSX__
-    // Install menuBar as a native titlebar accessory alongside traffic lights
-    if (auto osx = dynamic_cast<wxBorderlessFrameOSX*>(this)) {
-        osx->EnableUnifiedTitlebar(true);
-        osx->SetMovableByBackground(false);
-        osx->SetTitlebarAccessory(menuBar, 1, 1);
-    }
-    // Drag logic is handled natively by the titlebar visual effect view; no app-level hacks needed
-#endif
+    wxVector<MenuData> menus;
+    menus.push_back({L"파일(F)", {
+        {wxID_NEW, L"새 파일"},
+        {wxID_OPEN, L"열기"},
+        {wxID_SAVE, L"저장"},
+        {wxID_SAVEAS, L"다른 이름으로 저장"}
+    }});
+    menus.push_back({L"편집(E)", {
+        {wxID_UNDO, L"실행 취소"},
+        {wxID_REDO, L"다시 실행"},
+        {wxID_COPY, L"복사"},
+        {wxID_PASTE, L"붙여넣기"}
+    }});
+    menus.push_back({L"선택 영역(S)", {
+        {wxID_SELECTALL, L"모두 선택"},
+        {wxID_ANY, L"줄 선택"},
+        {wxID_ANY, L"블록 선택"}
+    }});
+    SetMenus(menus);
 
     leftToolbar = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(leftbarWidth, 100));
     leftToolbar->SetBackgroundColour(C_TOOL_BAR_BACKGROUND);
@@ -364,99 +321,19 @@ void MainFrame::SetUpGUI(){
     Refresh();
 }
 
-void MainFrame::SetSystemButtonColor(){
-    auto setButtonColor = [this](int button, int state, int kind, const wxColour& color) {
-        for (size_t buttonKind = (button < 0 ? 0 : button); buttonKind <= (button < 0 ? 3 : button); ++buttonKind) {
-            for (size_t stateKind = (state < 0 ? 0 : state); stateKind <= (state < 0 ? 4 : state); ++stateKind) {
-                systemButtons->SetColourTableEntry(
-                    static_cast<wxSystemButton>(buttonKind),
-                    static_cast<wxSystemButtonState>(stateKind),
-                    static_cast<wxSystemButtonColourKind>(kind),
-                    color);
-            }
-        }
-    };
 
-    setButtonColor(-1, -1, wxSystemButtonColourKind::wxSB_COLOUR_BACKGROUND, C_TITLE_BAR_BACKGROUND);
-    setButtonColor(-1, -1, wxSystemButtonColourKind::wxSB_COLOUR_FOREGROUND, C_TITLE_BAR_FOREGROUND);
-
-    setButtonColor(-1, wxSystemButtonState::wxSB_STATE_HOVER, wxSystemButtonColourKind::wxSB_COLOUR_BACKGROUND, C_TITLE_BAR_HOVER_BACKGROUND);
-    setButtonColor(-1, wxSystemButtonState::wxSB_STATE_PRESSED, wxSystemButtonColourKind::wxSB_COLOUR_BACKGROUND, C_TITLE_BAR_PRESSED_BACKGROUND);
-
-    
-    setButtonColor(wxSystemButton::wxSB_CLOSE, wxSystemButtonState::wxSB_STATE_HOVER, wxSystemButtonColourKind::wxSB_COLOUR_BACKGROUND, C_TITLE_BAR_CLOSE_HOVER_BACKGROUND);
-    setButtonColor(wxSystemButton::wxSB_CLOSE, wxSystemButtonState::wxSB_STATE_PRESSED, wxSystemButtonColourKind::wxSB_COLOUR_BACKGROUND, C_TITLE_BAR_CLOSE_PRESSED_BACKGROUND);
-
-    setButtonColor(-1, wxSystemButtonState::wxSB_STATE_INACTIVE, wxSystemButtonColourKind::wxSB_COLOUR_BACKGROUND, C_TITLE_BAR_INACTIVE_BACKGROUND);
-    setButtonColor(-1, wxSystemButtonState::wxSB_STATE_INACTIVE, wxSystemButtonColourKind::wxSB_COLOUR_FOREGROUND, C_TITLE_BAR_INACTIVE_FOREGROUND);
-    
-    systemButtons->UpdateState();
-}
-
-void MainFrame::OnPaint(wxPaintEvent& event)
-{
-#ifdef __WXOSX__
-    // Native titlebar (NSVisualEffectView) provides its own background; avoid custom paint overlay
-    event.Skip();
-    return;
-#endif
-    wxPaintDC dc(this);
-    dc.SetBrush(C_TITLE_BAR_BACKGROUND);
-    dc.SetPen(C_TITLE_BAR_BACKGROUND);
-    const int w = GetClientSize().x;
-    dc.DrawRectangle(0, 0, w, titlebarHeight);
-
-    event.Skip();
-}
 
 
 void MainFrame::OnSize(wxSizeEvent& event)
 {
     wxSize sz = GetClientSize();
-
-    // Position menu bar to the right of left-aligned system buttons (macOS)
-    int leftInset = 0;
-    if (systemButtons && !systemButtons->AreButtonsRightAligned()) {
-        leftInset = systemButtons->GetTotalSize().x + FromDIP(8);
-    }
-#ifndef __WXOSX__
-    // Windows/Linux: menuBar가 전체 가로를 차지하도록
-    menuBar->SetSize(leftInset, 0, sz.x - leftInset, titlebarHeight);
-#else
-    // macOS: titlebar accessory도 창 크기에 맞게 width 갱신
-    // menuBar->SetSize(0, 0, sz.x, titlebarHeight);
-#endif
-
-    int searchW = 320, searchH = 30;
+    int titlebarHeight = GetTitleBarHeight();
 
     leftToolbar->SetSize(0, titlebarHeight, leftbarWidth, sz.y - titlebarHeight);
-
     mainContent->SetSize(leftbarWidth, titlebarHeight, sz.x - leftbarWidth, sz.y - titlebarHeight);
 
     event.Skip();
 }
-
-wxButton* MainFrame::makeMenuBtn(const wxString& label, const wxArrayString subItems) {
-    int textWidth, textHeight;
-    int padding = 20;
-    wxButton* btn = new wxButton(menuBar, wxID_ANY, label, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
-    SetWindowColor(btn, C_TITLE_BAR_FOREGROUND, C_TITLE_BAR_BACKGROUND, C_TITLE_BAR_FOREGROUND, C_TITLE_BAR_HOVER_BACKGROUND);
-    btn->SetWindowStyleFlag(wxBORDER_NONE | wxTRANSPARENT_WINDOW);
-
-    menuBar->GetTextExtent(label, &textWidth, &textHeight);
-    btn->SetMinSize(wxSize(textWidth + padding, -1));
-
-    btn->Bind(wxEVT_BUTTON, [this, btn, subItems](wxCommandEvent&) {
-        wxMenu popup;
-        for(const auto& text : subItems) {
-            popup.Append(wxID_ANY, text);
-        }
-        wxPoint btnScreen = btn->ClientToScreen(wxPoint(0, btn->GetSize().y));
-        PopupMenu(&popup, ScreenToClient(btnScreen));
-    });
-
-    return btn;
-};
 
 
 wxButton* MainFrame::makeToolBtn(const wxString& label) {

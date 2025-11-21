@@ -8,12 +8,15 @@
 #include <thread>
 #include <atomic>
 
+class MainFrame; // Forward declaration
+
 class CpuLoadPanel : public wxPanel {
 public:
-    CpuLoadPanel(wxWindow* parent);
+    CpuLoadPanel(wxWindow* parent, MainFrame* mainFrame);
     ~CpuLoadPanel();
 
 private:
+    MainFrame* m_parentFrame;
     wxSpinCtrl* m_spinNumCores;
     wxButton* m_btnStart;
     wxButton* m_btnStop;

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <fstream>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <termios.h>
@@ -44,6 +45,7 @@ private:
     bool loop_started_ = false; // loop_start 호출 여부
     
     std::map<int, long> tracked_ports_; // Port -> Last Request Timestamp (seconds)
+    std::map<std::string, long> log_file_positions_; // File Path -> Last Size
 
     void publishSystemInfo();
     void updateTrackedPorts(const std::string& payload);
@@ -96,6 +98,7 @@ void Agent::on_message(const struct mosquitto_message* message) {
     std::string command_topic = "innerstat/" + this->mac_address + "/command";
     std::string request_topic = "innerstat/" + this->mac_address + "/req";
 
+    std::cout << "Received message on topic: " << topic << " with payload: " << payload << std::endl;
     if (topic == command_topic && payload == "ps") {
         std::string result = runCommand("ps -a");
         std::string ps_topic = "innerstat/" + this->mac_address + "/ps";
@@ -128,22 +131,79 @@ void Agent::checkPortTTL() {
 }
 
 void Agent::checkForLogUpdates() {
-    // This is a placeholder for the complex file monitoring logic.
-    // For now, it will generate a fake log for a random tracked port every so often.
     if (tracked_ports_.empty()) {
         return;
     }
 
-    int random_chance = rand() % 100;
-    if (random_chance < 20) { // 20% chance each second
-        int port_index = rand() % tracked_ports_.size();
-        auto it = tracked_ports_.begin();
-        std::advance(it, port_index);
-        int port = it->first;
+    auto running_processes = getPSbyPort(sudo_mode);
+    std::map<std::string, std::string> pid_to_port;
 
-        std::string log_topic = "innerstat/" + mac_address + "/" + std::to_string(port) + "/log";
-        std::string log_message = "This is a simulated log message for port " + std::to_string(port);
-        publish(NULL, log_topic.c_str(), log_message.length(), log_message.c_str());
+    for (const auto& port_pair : tracked_ports_) {
+        int port = port_pair.first;
+        std::string port_str = std::to_string(port);
+        for (const auto& item : running_processes) {
+            if (item.name.find(":" + port_str) != std::string::npos) {
+                pid_to_port[item.pid] = port_str;
+                break; 
+            }
+        }
+    }
+
+    for (const auto& pair : pid_to_port) {
+        const std::string& pid = pair.first;
+        const std::string& port = pair.second;
+
+        std::cout << "Checking logs for PID: " << pid << " on port: " << port << std::endl;
+
+        std::string command = "lsof -p " + pid;
+        std::string lsof_output = runCommand(command);
+        std::istringstream iss(lsof_output);
+        std::string line;
+        
+        while (std::getline(iss, line)) {
+            std::istringstream line_stream(line);
+            std::string p_cmd, p_pid, p_user, p_fd, p_type, p_device, p_size_off, p_node, p_name;
+            line_stream >> p_cmd >> p_pid >> p_user >> p_fd >> p_type >> p_device >> p_size_off >> p_node;
+            std::getline(line_stream, p_name);
+
+            // Check for regular files opened in write mode.
+            if (p_pid == pid && p_type == "REG" && p_fd.find('w') != std::string::npos) {
+                std::string& log_file_path = p_name;
+                // 파일 경로 앞뒤 공백 제거
+                log_file_path.erase(0, log_file_path.find_first_not_of(" \t\n\r"));
+                log_file_path.erase(log_file_path.find_last_not_of(" \t\n\r") + 1);
+
+                if (log_file_path.empty()) {
+                    continue; 
+                }
+
+                std::ifstream log_file(log_file_path, std::ios::binary | std::ios::ate);
+                if (!log_file.is_open()) {
+                    continue;
+                }
+
+                long current_size = log_file.tellg();
+                long last_size = 0;
+
+                if (log_file_positions_.count(log_file_path)) {
+                    last_size = log_file_positions_[log_file_path];
+                }
+
+                if (current_size > last_size) {
+                    log_file.seekg(last_size);
+                    std::string new_content;
+                    new_content.resize(current_size - last_size);
+                    log_file.read(&new_content[0], new_content.size());
+                    std::cout << "New log content from port " << port << ":\n" << new_content << std::endl;
+                    
+                    std::string log_topic = "innerstat/" + mac_address + "/" + port + "/log";
+                    publish(NULL, log_topic.c_str(), new_content.length(), new_content.c_str());
+                }
+                
+                log_file_positions_[log_file_path] = current_size;
+                log_file.close();
+            }
+        }
     }
 }
 

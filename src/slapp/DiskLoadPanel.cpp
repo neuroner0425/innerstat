@@ -1,11 +1,12 @@
 #include "innerstat/slapp/disk.h"
+#include "innerstat/slapp/main.h" // For MainFrame
 
 #include <wx/msgdlg.h>
 #include <wx/sizer.h>
 
 #include <fstream>
 #include <random>
-
+#include <cstdio> // For std::remove
 
 enum { ID_DISK_START = wxID_HIGHEST+300, ID_DISK_STOP };
 
@@ -14,16 +15,16 @@ wxBEGIN_EVENT_TABLE(DiskLoadPanel, wxPanel)
     EVT_BUTTON(ID_DISK_STOP, DiskLoadPanel::OnStop)
 wxEND_EVENT_TABLE()
 
-DiskLoadPanel::DiskLoadPanel(wxWindow* parent)
-    : wxPanel(parent), m_running(false)
+DiskLoadPanel::DiskLoadPanel(wxWindow* parent, MainFrame* mainFrame)
+    : wxPanel(parent), m_parentFrame(mainFrame), m_running(false)
 {
     wxStaticBoxSizer* sbox = new wxStaticBoxSizer(wxVERTICAL, this, L"디스크 I/O 부하");
-    wxString choices[] = { L"쓰기", L"읽기" };
-    m_radioType = new wxRadioBox(this, wxID_ANY, L"동작", wxDefaultPosition, wxDefaultSize, 2, choices, 1, wxRA_SPECIFY_COLS);
+    
     wxBoxSizer* fbox = new wxBoxSizer(wxHORIZONTAL);
     fbox->Add(new wxStaticText(this, wxID_ANY, L"파일명:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
     m_txtFileName = new wxTextCtrl(this, wxID_ANY, "disk_test.dat");
     fbox->Add(m_txtFileName, 1, wxRIGHT, 8);
+
     wxBoxSizer* sbox2 = new wxBoxSizer(wxHORIZONTAL);
     sbox2->Add(new wxStaticText(this, wxID_ANY, L"크기(MB):"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
     m_txtFileSize = new wxTextCtrl(this, wxID_ANY, "50");
@@ -34,11 +35,10 @@ DiskLoadPanel::DiskLoadPanel(wxWindow* parent)
     m_btnStop->Disable();
     m_lblStatus = new wxStaticText(this, wxID_ANY, L"상태: 대기");
 
-    sbox->Add(m_radioType, 0, wxALL|wxEXPAND, 4);
     sbox->Add(fbox, 0, wxALL|wxEXPAND, 4);
     sbox->Add(sbox2, 0, wxALL|wxEXPAND, 4);
-    sbox->Add(m_btnStart, 0, wxALL, 4);
-    sbox->Add(m_btnStop, 0, wxALL, 4);
+    sbox->Add(m_btnStart, 0, wxALL|wxEXPAND, 4);
+    sbox->Add(m_btnStop, 0, wxALL|wxEXPAND, 4);
     sbox->Add(m_lblStatus, 0, wxALL, 4);
 
     SetSizer(sbox);
@@ -47,10 +47,15 @@ DiskLoadPanel::DiskLoadPanel(wxWindow* parent)
 DiskLoadPanel::~DiskLoadPanel() {
     m_running = false;
     if (m_thread.joinable()) m_thread.join();
+    // Final cleanup, just in case
+    std::string fileName = m_txtFileName->GetValue().ToStdString();
+    if (!fileName.empty()) {
+        std::remove(fileName.c_str());
+    }
 }
 
 void DiskLoadPanel::OnStart(wxCommandEvent&) {
-    std::ofstream("disk_overload_status.txt") << "ON";
+    m_parentFrame->UpdateLoadStatus("disk", true);
     long mb=0;
     m_txtFileSize->GetValue().ToLong(&mb);
     if (mb<=0) {
@@ -62,86 +67,77 @@ void DiskLoadPanel::OnStart(wxCommandEvent&) {
     }
     std::string fileName(fname.mb_str());
     size_t sizeBytes = (size_t)mb*1024*1024;
+    
     m_running = true;
     m_btnStart->Disable(); m_btnStop->Enable();
-    m_txtFileName->Disable(); m_txtFileSize->Disable(); m_radioType->Disable();
-    m_lblStatus->SetLabel(L"상태: 실행 중");
-    if (m_radioType->GetSelection() == 0) {
-        m_thread = std::thread(&DiskLoadPanel::DiskWriteTask, this, fileName, sizeBytes);
-    } else {
-        m_thread = std::thread(&DiskLoadPanel::DiskReadTask, this, fileName, sizeBytes);
-    }
+    m_txtFileName->Disable(); m_txtFileSize->Disable();
+    m_lblStatus->SetLabel(L"상태: 쓰기/읽기 반복 중");
+    
+    m_thread = std::thread(&DiskLoadPanel::DiskLoadTask, this, fileName, sizeBytes);
 }
+
 void DiskLoadPanel::OnStop(wxCommandEvent&) {
-    std::ofstream("disk_overload_status.txt") << "OFF";
+    m_parentFrame->UpdateLoadStatus("disk", false);
     m_running = false;
     if (m_thread.joinable()) m_thread.join();
+    
+    // Clean up the file on stop
+    std::string fileName = m_txtFileName->GetValue().ToStdString();
+    if (!fileName.empty()) {
+        std::remove(fileName.c_str());
+    }
+
     m_btnStart->Enable(); m_btnStop->Disable();
-    m_txtFileName->Enable(); m_txtFileSize->Enable(); m_radioType->Enable();
+    m_txtFileName->Enable(); m_txtFileSize->Enable();
     m_lblStatus->SetLabel(L"상태: 대기");
 }
-void DiskLoadPanel::DiskWriteTask(std::string fileName, size_t fileSize)
+
+void DiskLoadPanel::DiskLoadTask(std::string fileName, size_t fileSize)
 {
-    const int numThreads = 4; // 동시 스레드 수. 시스템 상황에 따라 조정
-    std::vector<std::thread> threads;
+    std::vector<char> buffer(1024 * 1024); // 1MB buffer
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 255);
+    for (auto& b : buffer) b = (char)dis(gen);
 
-    for (int t = 0; t < numThreads; ++t) {
-        threads.emplace_back([&]() {
-            std::vector<char> buf(4 * 1024 * 1024); // 버퍼 4MB
-            std::random_device rd; std::mt19937 gen(rd());
-            std::uniform_int_distribution<> dis(0, 255);
-            for (auto& b : buf) b = (char)dis(gen);
-            std::uniform_int_distribution<size_t> pos_dis(0, fileSize - buf.size());
+    while (m_running) {
+        // Delete before writing
+        std::remove(fileName.c_str());
 
-            while (m_running) {
-                std::fstream f(fileName, std::ios::in | std::ios::out | std::ios::binary);
-                if (!f) { // 없으면 새로 생성
-                    std::ofstream nf(fileName, std::ios::binary | std::ios::trunc);
-                    nf.seekp(fileSize - 1); nf.write("", 1); nf.close();
-                    continue;
-                }
-                for (int i = 0; i < 128 && m_running; ++i) {
-                    size_t offset = pos_dis(gen);
-                    f.seekp(offset);
-                    f.write(buf.data(), buf.size());
-                    f.flush(); // flush로 OS 캐시 적중률 감소
-                }
-                f.close();
-                // 슬립 없음 (또는 아주 짧게)
-                // std::this_thread::sleep_for(std::chrono::milliseconds(5));
-            }
-        });
+        // === WRITE PHASE ===
+        std::ofstream outFile(fileName, std::ios::binary);
+        if (!outFile) {
+            // Can't wxLog from thread, so just update status and stop
+            m_running = false;
+            CallAfter([this]() {
+                m_lblStatus->SetLabel(L"상태: 쓰기 오류");
+            });
+            break;
+        }
+        for (size_t i = 0; i < fileSize / buffer.size() && m_running; ++i) {
+            outFile.write(buffer.data(), buffer.size());
+        }
+        outFile.close();
+        if (!m_running) break;
+
+        // === READ PHASE ===
+        std::ifstream inFile(fileName, std::ios::binary);
+        if (!inFile) {
+            m_running = false;
+            CallAfter([this]() {
+                m_lblStatus->SetLabel(L"상태: 읽기 오류");
+            });
+            break;
+        }
+        while (inFile.read(buffer.data(), buffer.size()) && m_running) {
+            // Reading...
+        }
+        inFile.close();
+        if (!m_running) break;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Small delay between cycles
     }
-    for (auto& th : threads) if (th.joinable()) th.join();
-}
 
-void DiskLoadPanel::DiskReadTask(std::string fileName, size_t fileSize)
-{
-    // (파일 여러 개 읽고 싶으면, 파일명+숫자 등으로 리스트 생성)
-    const int numThreads = 4;
-    std::vector<std::thread> threads;
-    for (int t = 0; t < numThreads; ++t) {
-        threads.emplace_back([&]() {
-            std::vector<char> buf(4 * 1024 * 1024); // 4MB
-            std::random_device rd; std::mt19937 gen(rd());
-            std::uniform_int_distribution<size_t> pos_dis(0, fileSize - buf.size());
-            while (m_running) {
-                std::ifstream f(fileName, std::ios::binary);
-                if (!f) {
-                    CallAfter([this]() {
-                        m_lblStatus->SetLabel(L"상태: 파일없음/읽기 오류");
-                    });
-                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-                    continue;
-                }
-                for (int i = 0; i < 512 && m_running; ++i) {
-                    size_t offset = pos_dis(gen);
-                    f.seekg(offset);
-                    f.read(buf.data(), buf.size());
-                }
-                f.close();
-            }
-        });
-    }
-    for (auto& th : threads) if (th.joinable()) th.join();
+    // Final cleanup
+    std::remove(fileName.c_str());
 }

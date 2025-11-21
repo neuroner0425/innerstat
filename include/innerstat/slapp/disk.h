@@ -2,20 +2,21 @@
 #include <wx/panel.h>
 #include <wx/button.h>
 #include <wx/textctrl.h>
-#include <wx/radiobox.h>
 #include <wx/stattext.h>
 
 #include <thread>
 #include <atomic>
 #include <string>
 
+class MainFrame; // Forward declaration
+
 class DiskLoadPanel : public wxPanel {
 public:
-    DiskLoadPanel(wxWindow* parent);
+    DiskLoadPanel(wxWindow* parent, MainFrame* mainFrame);
     ~DiskLoadPanel();
 
 private:
-    wxRadioBox* m_radioType;
+    MainFrame* m_parentFrame;
     wxTextCtrl* m_txtFileName;
     wxTextCtrl* m_txtFileSize;
     wxButton* m_btnStart;
@@ -27,8 +28,7 @@ private:
 
     void OnStart(wxCommandEvent& evt);
     void OnStop(wxCommandEvent& evt);
-    void DiskWriteTask(std::string fileName, size_t fileSize);
-    void DiskReadTask(std::string fileName, size_t fileSize);
+    void DiskLoadTask(std::string fileName, size_t fileSize);
 
     wxDECLARE_EVENT_TABLE();
 };
